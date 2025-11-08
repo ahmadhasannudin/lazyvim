@@ -10,7 +10,7 @@ return {
 
       -- Set up keymaps after a delay to ensure they override everything
       vim.defer_fn(function()
-        -- Custom Tab behavior with priority: 1. Snippet, 2. Copilot, 3. Normal Tab
+        -- Custom Tab behavior with priority: 1. Snippet, 2. Copilot, 3. Jump to closing bracket, 4. Normal Tab
         vim.keymap.set("i", "<Tab>", function()
           -- Priority 1: Check if blink.cmp menu is visible (snippet/autocomplete)
           local blink = package.loaded["blink.cmp"]
@@ -41,7 +41,16 @@ return {
             return
           end
 
-          -- Priority 3: Fallback to regular Tab
+          -- Priority 3: Jump to closing bracket if cursor is before one
+          local line = vim.api.nvim_get_current_line()
+          local col = vim.api.nvim_win_get_cursor(0)[2]
+          local char_after = line:sub(col + 1, col + 1)
+          if char_after:match("[%)%]%}'\"`]") then
+            vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Right>", true, false, true), "n", false)
+            return
+          end
+
+          -- Priority 4: Fallback to regular Tab
           vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", false)
         end, { silent = true })
 

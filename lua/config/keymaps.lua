@@ -11,6 +11,11 @@ vim.keymap.set("n", "<leader><leader>", "<C-^>", { desc = "Switch to last buffer
 vim.opt.mouse = ""
 -- vim.opt.clipboard = "unnamedplus"
 
+-- Cmd+S to save
+vim.keymap.set("n", "<D-s>", ":w<CR>", { desc = "Save file" })
+vim.keymap.set("i", "<D-s>", "<Esc>:w<CR>a", { desc = "Save file and return to insert mode" })
+vim.keymap.set("v", "<D-s>", "<Esc>:w<CR>gv", { desc = "Save file and restore selection" })
+
 -- make selection then cmd+c to copy to system clipboard
 vim.keymap.set("v", "<D-c>", '"+y', { desc = "Copy to system clipboard" })
 vim.keymap.set("n", "<D-v>", '"+p', { desc = "Paste from system clipboard" })
