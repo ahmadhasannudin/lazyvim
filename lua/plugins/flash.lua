@@ -1,4 +1,10 @@
 return {
   "folke/flash.nvim",
-  -- enabled = false,
+  opts = {
+    modes = {
+      char = {
+        enabled = false,
+      },
+    },
+  },
 }

@@ -5,3 +5,6 @@ require("config.lazy")
 vim.defer_fn(function()
   require("config.themes").load_theme()
 end, 100)
+
+-- Load custom highlights
+require("config.highlights")

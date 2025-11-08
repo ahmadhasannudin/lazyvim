@@ -1,8 +1,9 @@
 return {
   {
     "nvim-treesitter/nvim-treesitter",
-    opts = {
-      ensure_installed = {
+    opts = function(_, opts)
+      opts.ensure_installed = opts.ensure_installed or {}
+      vim.list_extend(opts.ensure_installed, {
         "bash",
         "c",
         "cpp",
@@ -42,13 +43,16 @@ return {
         "vimdoc",
         "xml",
         "yaml",
-      },
-      highlight = {
-        enable = true,
-      },
-      indent = {
-        enable = true,
-      },
-    },
+      })
+      
+      opts.highlight = opts.highlight or {}
+      opts.highlight.enable = true
+      opts.highlight.additional_vim_regex_highlighting = false
+      
+      opts.indent = opts.indent or {}
+      opts.indent.enable = true
+      
+      return opts
+    end,
   },
 }
