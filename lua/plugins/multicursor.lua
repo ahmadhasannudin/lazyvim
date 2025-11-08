@@ -5,9 +5,9 @@ return {
     init = function()
       -- VS Code-style keymaps
       vim.g.VM_maps = {
-        ["Find Under"] = "<D-d>", -- Cmd + D (Mac)
+        ["Find Under"] = "<D-d>", -- Cmd + D (Mac) - Add next occurrence
         ["Find Subword Under"] = "<D-d>", -- same for sub-words
-        ["Select All"] = "<leader>sa", -- Select All
+        ["Skip Region"] = "<D-k>", -- Cmd + K - Skip current and find next
       }
 
       -- Optional tweaks
@@ -24,6 +24,27 @@ return {
         end,
       })
     end,
+    keys = {
+      {
+        "<D-L>",
+        function()
+          local mode = vim.fn.mode()
+          if mode == "v" or mode == "V" or mode == "\22" then
+            -- Visual mode: select all matches of visual selection
+            vim.cmd("normal! y") -- yank the selection
+            local search_pattern = vim.fn.getreg('"')
+            vim.fn.setreg('/', vim.fn.escape(search_pattern, '\\/.*$^~[]'))
+            vim.cmd([[execute "normal! \<Plug>(VM-Find-Under)"]])
+            vim.cmd([[execute "normal! \<Plug>(VM-Select-All)"]])
+          else
+            -- Normal mode: select all matches of word under cursor
+            vim.cmd([[execute "normal! \<Plug>(VM-Select-All)\<Tab>"]])
+          end
+        end,
+        mode = { "n", "v" },
+        desc = "Select all occurrences (Cmd+Shift+L)",
+      },
+    },
   },
 }
 

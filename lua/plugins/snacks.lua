@@ -12,7 +12,7 @@ return {
     },
     keys = {
       {
-        "<leader>ss",
+        "<D-f>",
         function()
           require("snacks.picker").grep({
             args = {
@@ -59,7 +59,7 @@ return {
           -- Get the parent directory of the current buffer
           local current_file = vim.api.nvim_buf_get_name(0)
           local default_folder = vim.fn.fnamemodify(current_file, ":h")
-          
+
           -- Prompt for folder path
           vim.ui.input({ prompt = "Search in folder: ", default = default_folder }, function(folder)
             if folder and folder ~= "" then
