@@ -51,6 +51,15 @@ return {
         },
       },
       picker = {
+        sources = {
+          explorer = {
+            layout = {
+              layout = {
+                position = "right",
+              },
+            },
+          },
+        },
         exclude = {
           "vendor",
           "node_modules",
@@ -117,6 +126,13 @@ return {
           end)
         end,
         desc = "Search in specific folder (Cmd+Shift+F)",
+      },
+      {
+        "<leader>e",
+        function()
+          Snacks.explorer()
+        end,
+        desc = "Toggle Explorer (Snacks)",
       },
     },
   },
