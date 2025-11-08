@@ -53,6 +53,35 @@ return {
         end,
         desc = "Grep with exclusions (Cmd+P)",
       },
+      {
+        "<D-S-f>",
+        function()
+          -- Get the parent directory of the current buffer
+          local current_file = vim.api.nvim_buf_get_name(0)
+          local default_folder = vim.fn.fnamemodify(current_file, ":h")
+          
+          -- Prompt for folder path
+          vim.ui.input({ prompt = "Search in folder: ", default = default_folder }, function(folder)
+            if folder and folder ~= "" then
+              require("snacks.picker").grep({
+                cwd = folder,
+                args = {
+                  "--vimgrep",
+                  "--smart-case",
+                  "--hidden",
+                  "--glob",
+                  "!**/vendor/**",
+                  "--glob",
+                  "!vendor/**",
+                  "--glob",
+                  "!**node_modules/**",
+                },
+              })
+            end
+          end)
+        end,
+        desc = "Search in specific folder (Cmd+Shift+F)",
+      },
     },
   },
 }
