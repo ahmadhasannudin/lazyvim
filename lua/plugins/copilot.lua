@@ -1,6 +1,5 @@
 return {
   -- GitHub Copilot
-  -- check for
   {
     "github/copilot.vim",
     event = "InsertEnter",
@@ -11,37 +10,49 @@ return {
 
       -- Set up keymaps after a delay to ensure they override everything
       vim.defer_fn(function()
-        -- Custom Tab behavior: prefer snippets, fallback to Copilot
+        -- Custom Tab behavior with priority: 1. Snippet, 2. Copilot, 3. Normal Tab
         vim.keymap.set("i", "<Tab>", function()
-          -- Check if blink.cmp menu is visible
+          -- Priority 1: Check if blink.cmp menu is visible (snippet/autocomplete)
           local blink = package.loaded["blink.cmp"]
-          if blink and blink.windows and blink.windows.autocomplete and blink.windows.autocomplete:is_open() then
-            return "<C-n>"  -- Navigate completion menu
+          if blink then
+            local is_visible = false
+            if blink.is_visible and blink.is_visible() then
+              is_visible = true
+            elseif blink.windows and blink.windows.autocomplete and blink.windows.autocomplete.win then
+              if type(blink.windows.autocomplete.win) == "number" and vim.api.nvim_win_is_valid(blink.windows.autocomplete.win) then
+                is_visible = true
+              end
+            end
+            
+            if is_visible then
+              -- Accept the selected item in blink.cmp
+              if blink.accept then
+                blink.accept()
+              elseif blink.windows and blink.windows.autocomplete and blink.windows.autocomplete.accept then
+                blink.windows.autocomplete.accept()
+              end
+              return
+            end
           end
 
-          -- Check if snippet is active
-          if vim.snippet and vim.snippet.active({ direction = 1 }) then
-            return "<Cmd>lua vim.snippet.jump(1)<CR>"
+          -- Priority 2: Check if Copilot has a suggestion (only if no snippet menu)
+          if vim.fn["copilot#GetDisplayedSuggestion"]().text ~= "" then
+            vim.api.nvim_feedkeys(vim.fn["copilot#Accept"](""), "n", true)
+            return
           end
 
-          -- Check if Copilot has a suggestion
-          local suggestion = vim.fn["copilot#GetDisplayedSuggestion"]()
-          if suggestion.text ~= "" then
-            vim.fn["copilot#Accept"]("")
-            return ""
-          end
-
-          -- Fallback to regular Tab
-          return "<Tab>"
-        end, { expr = true, silent = true, replace_keycodes = false })
+          -- Priority 3: Fallback to regular Tab
+          vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", false)
+        end, { silent = true })
 
         -- Custom Shift-Tab for snippet backward jump
         vim.keymap.set("i", "<S-Tab>", function()
           if vim.snippet and vim.snippet.active({ direction = -1 }) then
-            return "<Cmd>lua vim.snippet.jump(-1)<CR>"
+            vim.snippet.jump(-1)
+            return
           end
-          return "<S-Tab>"
-        end, { expr = true, silent = true, replace_keycodes = false })
+          vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<S-Tab>", true, false, true), "n", false)
+        end, { silent = true })
 
         -- Custom Esc behavior in insert mode - stay in insert mode when dismissing
         -- Priority: 1. Snippet/Autocomplete menu, 2. Copilot suggestion, 3. Normal mode
@@ -65,7 +76,7 @@ return {
               elseif blink_cmp.windows and blink_cmp.windows.autocomplete and blink_cmp.windows.autocomplete.close then
                 blink_cmp.windows.autocomplete.close()
               end
-              return ""
+              return
             end
           end
 
@@ -73,12 +84,12 @@ return {
           local suggestion = vim.fn["copilot#GetDisplayedSuggestion"]()
           if suggestion.text ~= "" then
             vim.fn["copilot#Dismiss"]()
-            return ""
+            return
           end
 
           -- If none are active, go to normal mode
-          return vim.api.nvim_replace_termcodes("<Esc>", true, false, true)
-        end, { expr = true, silent = true })
+          vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Esc>", true, false, true), "n", false)
+        end, { silent = true })
       end, 100)
 
       -- Optional: Use Ctrl-J as alternative accept

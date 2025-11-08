@@ -51,3 +51,8 @@ end, { noremap = true, silent = true, desc = "Toggle line comment" })
 vim.keymap.set("v", "<D-/>", function()
   vim.cmd("normal gc")
 end, { noremap = true, silent = true, desc = "Toggle line comment" })
+
+-- Navigate to symbols (like Cmd+Shift+O in VSCode)
+vim.keymap.set("n", "<D-S-o>", function()
+  require("snacks.picker").lsp_symbols()
+end, { desc = "Go to Symbol" })
