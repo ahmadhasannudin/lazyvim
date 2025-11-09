@@ -2,6 +2,11 @@ return {
   {
     "neovim/nvim-lspconfig",
     opts = function(_, opts)
+      -- Enable PHP language server
+      opts.servers = opts.servers or {}
+      opts.servers.intelephense = {
+        filetypes = { "php" },
+      }
       -- Ensure root_dir respects workspace
       local util = require("lspconfig.util")
       local default_root_dir = util.root_pattern(".git", "package.json", ".project-root")
