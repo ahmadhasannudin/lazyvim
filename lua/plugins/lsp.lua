@@ -33,6 +33,7 @@ return {
       opts.servers["*"] = {
         keys = {
           { "K", false }, -- Disable K hover for all servers
+          { "gd", "<cmd>lua vim.lsp.buf.definition()<CR>", desc = "Goto Definition", has = "definition" }, -- Override snacks picker
         },
       }
       
