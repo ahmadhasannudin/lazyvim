@@ -68,6 +68,7 @@ return {
             ignored = true,
           },
           explorer = {
+            hidden = true,
             layout = {
               layout = {
                 position = "right",
