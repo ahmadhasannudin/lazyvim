@@ -1,5 +1,4 @@
 # Ignore the compiled binary
-sftp-listener
 
 # Ignore Go build artifacts
 *.exe
