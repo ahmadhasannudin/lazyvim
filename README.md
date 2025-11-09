@@ -1,5 +1,8 @@
 # SFTP Listener Configuration
 
+## Fresh installation Instructions
+rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim && echo "Neovim directories removed" && brew reinstall neovim
+
 ## Overview
 The SFTP listener automatically uploads files to remote SFTP servers when you save them in Neovim. Everything is now contained within your nvim config folder.
 
