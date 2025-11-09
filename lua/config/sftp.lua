@@ -5,6 +5,19 @@ local M = {}
 
 -- Helper function to extract project info from path
 local function get_project_info(filepath)
+  -- First, try to get workspace name
+  local ok, workspaces = pcall(require, "workspaces")
+  if ok then
+    local workspace_name = workspaces.name()
+    if workspace_name and workspace_name ~= "" then
+      local workspace_path = workspaces.path()
+      if workspace_path then
+        return workspace_path, workspace_name
+      end
+    end
+  end
+
+  -- Fallback to pattern matching
   local patterns = {
     "(/Users/[^/]+/project/[^/]+/([^/]+))/", -- /Users/*/project/*/PROJECT_NAME/
     "(/Users/[^/]+/project/([^/]+))/", -- /Users/*/project/PROJECT_NAME/
