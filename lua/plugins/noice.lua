@@ -3,15 +3,22 @@ return {
     "folke/noice.nvim",
     event = "VeryLazy",
     opts = function(_, opts)
-      -- Use noice for vim.notify
-      vim.notify = require("noice").notify
-
       return {
         presets = {
           bottom_search = true,
-          command_palette = false,
+          command_palette = true,
           long_message_to_split = true,
           lsp_doc_border = true,
+        },
+        cmdline = {
+          enabled = true,
+          view = "cmdline_popup",
+        },
+        messages = {
+          enabled = true,
+          view = "mini",
+          view_error = "mini",
+          view_warn = "mini",
         },
         notify = {
           enabled = true,
@@ -24,34 +31,40 @@ return {
             ["cmp.entry.get_documentation"] = true,
           },
           progress = {
-            enabled = false, -- Disable LSP progress (less distracting)
+            enabled = false,
+          },
+          message = {
+            enabled = true,
+            view = "mini",
           },
         },
         routes = {
           {
             filter = {
               event = "notify",
-              min_height = 1,
             },
             view = "mini",
-            opts = { skip = false }, -- Keep in history
           },
           {
             filter = {
               event = "msg_show",
-              any = {
-                { find = "written" },
-                { find = "SFTP" },
-                { find = "session" },
-                { find = "Session" },
-                { find = "workspace" },
-                { find = "Workspace" },
-                { find = "Loaded" },
-                { find = "Switched" },
-              },
+              kind = "",
             },
             view = "mini",
-            opts = { skip = false }, -- Keep in history
+          },
+          {
+            filter = {
+              event = "msg_show",
+              kind = "echo",
+            },
+            view = "mini",
+          },
+          {
+            filter = {
+              event = "msg_show",
+              kind = "echomsg",
+            },
+            view = "mini",
           },
         },
         views = {
@@ -59,7 +72,7 @@ return {
             backend = "mini",
             relative = "editor",
             align = "message-right",
-            timeout = 2000,
+            timeout = 3000,
             reverse = true,
             position = {
               row = -2,
@@ -68,10 +81,10 @@ return {
             size = {
               width = "auto",
               height = "auto",
-              max_height = 1,
+              max_height = 15,
             },
             border = {
-              style = "none",
+              style = "rounded",
             },
             zindex = 60,
             win_options = {
@@ -124,7 +137,6 @@ return {
       },
     },
   },
-  -- Disable nvim-notify, use noice for all notifications
   {
     "rcarriga/nvim-notify",
     enabled = false,
