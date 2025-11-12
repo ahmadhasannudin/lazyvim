@@ -138,3 +138,31 @@ end, { desc = "SFTP: Stop Listener" })
 vim.keymap.set("n", "<leader>ft", function()
   sftp.toggle()
 end, { desc = "SFTP: Toggle Listener" })
+
+-- Ctrl+Q to toggle hover (editor.action.showHover in VSCode)
+vim.keymap.set("n", "<C-q>", function()
+  -- Check if there's a floating window open (hover)
+  local has_float = false
+  for _, win in ipairs(vim.api.nvim_list_wins()) do
+    -- Use pcall to safely check window config
+    local ok, config = pcall(vim.api.nvim_win_get_config, win)
+    if ok and config.relative ~= "" then
+      has_float = true
+      pcall(vim.api.nvim_win_close, win, false)
+    end
+  end
+  
+  -- If no float was open, show hover
+  if not has_float then
+    vim.lsp.buf.hover()
+  end
+end, { desc = "Toggle hover (editor.action.showHover)" })
+
+-- Clear highlight
+vim.keymap.set("n", "<leader>Q", function()
+  vim.cmd("match none")
+end, { desc = "Clear word highlight" })
+
+-- Cmd+X to cut line
+vim.keymap.set("n", "<D-x>", '"+dd', { desc = "Cut line to system clipboard" })
+vim.keymap.set("v", "<D-x>", '"+d', { desc = "Cut selection to system clipboard" })

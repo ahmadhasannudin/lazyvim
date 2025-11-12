@@ -22,6 +22,32 @@ return {
       return ""
     end
 
+    local function get_time()
+      return os.date("%H:%M")
+    end
+
+    local function copilot_status()
+      local ok, copilot_api = pcall(require, "copilot.api")
+      if not ok then
+        return ""
+      end
+      
+      local status = copilot_api.status.data
+      if not status then
+        return "󰚩 "
+      end
+      
+      if status.status == "InProgress" then
+        return "󰚩 ..."
+      elseif status.status == "Normal" then
+        return "󰚩 "
+      elseif status.status == "Warning" then
+        return "󰚩 "
+      else
+        return "󰚩 "
+      end
+    end
+
     return {
       options = {
         theme = "auto",
@@ -32,9 +58,9 @@ return {
         lualine_a = { "mode" },
         lualine_b = { "branch", "diff", "diagnostics" },
         lualine_c = { get_project_root },
-        lualine_x = { "copilot", "encoding", "fileformat", "filetype" },
+        lualine_x = { copilot_status, "encoding", "fileformat", "filetype" },
         lualine_y = { "progress" },
-        lualine_z = { "location" },
+        lualine_z = { get_time, "location" },
       },
       inactive_sections = {
         lualine_a = {},
