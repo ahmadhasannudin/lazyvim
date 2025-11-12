@@ -23,8 +23,6 @@ vim.keymap.set("v", "<D-c>", '"+y', { desc = "Copy to system clipboard" })
 vim.keymap.set("n", "<D-v>", '"+p', { desc = "Paste from system clipboard" })
 vim.keymap.set("v", "<D-v>", '"+p', { desc = "Paste from system clipboard" })
 vim.keymap.set("i", "<D-v>", "<C-R>+", { desc = "Paste from system clipboard" })
--- disabme f + n
-vim.keymap.set("n", "fn", "n", { desc = "Disabled f + n" })
 
 -- Copy full path
 vim.keymap.set("n", "<leader>yfp", function()
