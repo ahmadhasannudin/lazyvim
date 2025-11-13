@@ -185,22 +185,71 @@ return {
     -- Cycle through terminal tabs
     function _G.cycle_terminal_tabs()
       local workspace_root = vim.fn.getcwd()
-      local max_id = 0
+      local workspace_terms = {}
       
-      -- Find max terminal ID for current workspace
-      for key, _ in pairs(terminals) do
-        if key:match("^" .. workspace_root) then
+      print("=== Debug Cycle ===")
+      print("Workspace root:", workspace_root)
+      print("Current terminal ID:", current_terminal_id)
+      print("\nAll terminals:")
+      for key, term in pairs(terminals) do
+        print("  Key:", key)
+      end
+      
+      -- Find all terminals for current workspace
+      for key, term in pairs(terminals) do
+        local escaped_workspace = vim.pesc(workspace_root)
+        local pattern = "^" .. escaped_workspace
+        print("\nChecking:", key)
+        print("  Pattern:", pattern)
+        print("  Matches:", key:match(pattern) ~= nil)
+        
+        if key:match(pattern) then
           local id = tonumber(key:match("_(%d+)$"))
-          if id and id > max_id then
-            max_id = id
+          print("  Extracted ID:", id)
+          if id then
+            table.insert(workspace_terms, { id = id, term = term })
           end
         end
       end
       
-      if max_id > 0 then
-        current_terminal_id = (current_terminal_id % max_id) + 1
-        toggle_terminal(current_terminal_id)
+      print("\nFound workspace terminals:", #workspace_terms)
+      for i, t in ipairs(workspace_terms) do
+        print("  Terminal", i, "ID:", t.id)
       end
+      
+      -- Sort by id
+      table.sort(workspace_terms, function(a, b) return a.id < b.id end)
+      
+      if #workspace_terms == 0 then
+        vim.notify("No terminals found for this workspace", vim.log.levels.WARN)
+        return
+      end
+      
+      if #workspace_terms == 1 then
+        vim.notify("Only one terminal exists", vim.log.levels.INFO)
+        return
+      end
+      
+      -- Find current terminal index
+      local current_idx = 1
+      for i, t in ipairs(workspace_terms) do
+        if t.id == current_terminal_id then
+          current_idx = i
+          break
+        end
+      end
+      
+      print("\nCurrent index:", current_idx)
+      
+      -- Get next terminal
+      local next_idx = (current_idx % #workspace_terms) + 1
+      local next_term = workspace_terms[next_idx]
+      
+      print("Next index:", next_idx)
+      print("Next terminal ID:", next_term.id)
+      
+      current_terminal_id = next_term.id
+      toggle_terminal(next_term.id)
     end
     
     -- Close current terminal tab
@@ -330,6 +379,7 @@ return {
     { "<C-\\>", "<cmd>lua toggle_terminal(1)<cr>", desc = "Toggle terminal", mode = { "n", "t" } },
     { "<leader>tt", "<cmd>lua toggle_all_workspace_terminals()<cr>", desc = "Toggle all terminals" },
     { "<leader>tn", "<cmd>lua new_terminal_tab()<cr>", desc = "New terminal tab" },
+    { "<C-n>", [[<C-\><C-n><cmd>lua cycle_terminal_tabs()<cr>]], desc = "Cycle terminal tabs", mode = "t" },
     { "<leader>tc", "<cmd>lua cycle_terminal_tabs()<cr>", desc = "Cycle terminal tabs" },
     { "<leader>tq", "<cmd>lua close_terminal_tab()<cr>", desc = "Close terminal tab" },
     { "<leader>t1", "<cmd>lua toggle_terminal(1)<cr>", desc = "Terminal 1" },
