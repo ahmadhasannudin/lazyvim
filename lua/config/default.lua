@@ -11,3 +11,10 @@ vim.opt.wrap = true
 
 -- Additional animation disable for noice
 -- vim.g.noice_animate = false
+
+
+-- coloer highlights for git conflicts
+vim.api.nvim_set_hl(0, "GitConflictCurrent", { bg = "#283848" })
+vim.api.nvim_set_hl(0, "GitConflictIncoming", { bg = "#3a2a3a" })
+vim.api.nvim_set_hl(0, "GitConflictAncestor", { bg = "#303030" })
+vim.api.nvim_set_hl(0, "GitConflictSeparator", { fg = "#666666" })
