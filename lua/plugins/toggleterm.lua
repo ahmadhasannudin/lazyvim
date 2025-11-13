@@ -284,6 +284,35 @@ return {
       end,
     })
     
+    -- Toggle all workspace terminals (show if any hidden, hide if any visible)
+    function _G.toggle_all_workspace_terminals()
+      local current_workspace = vim.fn.getcwd()
+      local workspace_terms = {}
+      local any_open = false
+      
+      -- Find all terminals for current workspace
+      for key, term in pairs(terminals) do
+        if key:match("^" .. vim.pesc(current_workspace)) then
+          table.insert(workspace_terms, term)
+          if term:is_open() then
+            any_open = true
+          end
+        end
+      end
+      
+      -- If any terminal is open, close all
+      if any_open then
+        for _, term in ipairs(workspace_terms) do
+          if term:is_open() then
+            term:close()
+          end
+        end
+      else
+        -- No terminals open, open terminal 1
+        toggle_terminal(1)
+      end
+    end
+    
     -- Store global functions for workspace integration
     _G.toggleterm_close_all = close_all_terminals
     _G.toggleterm_get_workspace_terminals = function()
@@ -299,7 +328,7 @@ return {
   end,
   keys = {
     { "<C-\\>", "<cmd>lua toggle_terminal(1)<cr>", desc = "Toggle terminal", mode = { "n", "t" } },
-    { "<leader>tt", "<cmd>lua toggle_terminal(1)<cr>", desc = "Toggle floating terminal" },
+    { "<leader>tt", "<cmd>lua toggle_all_workspace_terminals()<cr>", desc = "Toggle all terminals" },
     { "<leader>tn", "<cmd>lua new_terminal_tab()<cr>", desc = "New terminal tab" },
     { "<leader>tc", "<cmd>lua cycle_terminal_tabs()<cr>", desc = "Cycle terminal tabs" },
     { "<leader>tq", "<cmd>lua close_terminal_tab()<cr>", desc = "Close terminal tab" },
