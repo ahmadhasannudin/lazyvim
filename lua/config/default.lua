@@ -3,6 +3,12 @@ vim.o.scrolloff = 8 -- vertical padding when moving cursor
 vim.opt.cmdheight = 2 -- more space at the bottom
 vim.g.autoformat = false
 
+-- Tab settings
+vim.opt.tabstop = 2 -- number of spaces that a <Tab> in the file counts for
+vim.opt.shiftwidth = 2 -- number of spaces to use for each step of (auto)indent
+vim.opt.softtabstop = 2 -- number of spaces that a <Tab> counts for while editing
+vim.opt.expandtab = true -- use spaces instead of tabs
+
 vim.opt.wrap = true
 -- vim.opt.clipboard = "" -- don't use system clipboard by default
 

@@ -12,10 +12,10 @@ return {
             -- Set global flag to prevent toggleterm from opening
             vim.g.switching_workspace = true
             
-            -- Close floaterm properly if it's open to avoid state issues
+            -- Only close floaterm windows, but keep terminals alive
             local floaterm_state_ok, floaterm_state = pcall(require, "floaterm.state")
             if floaterm_state_ok and floaterm_state.volt_set then
-              -- Close floaterm windows and reset state
+              -- Close floaterm windows but preserve terminal buffers and state
               pcall(function()
                 if floaterm_state.win and vim.api.nvim_win_is_valid(floaterm_state.win) then
                   vim.api.nvim_win_close(floaterm_state.win, true)
@@ -27,12 +27,8 @@ return {
                   vim.api.nvim_win_close(floaterm_state.sidewin, true)
                 end
               end)
-              -- Reset floaterm state completely
+              -- Only reset window references, keep terminals and buffers
               floaterm_state.volt_set = false
-              floaterm_state.terminals = nil
-              floaterm_state.buf = nil
-              floaterm_state.sidebuf = nil
-              floaterm_state.barbuf = nil
               floaterm_state.win = nil
               floaterm_state.barwin = nil
               floaterm_state.sidewin = nil
