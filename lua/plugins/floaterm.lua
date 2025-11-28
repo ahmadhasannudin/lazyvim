@@ -245,6 +245,21 @@ return {
   config = function(_, opts)
     require("floaterm").setup(opts)
     
+    -- Register which-key mappings for floaterm
+    local wk_ok, wk = pcall(require, "which-key")
+    if wk_ok then
+      -- Terminal group under leader
+      wk.add({
+        { "<leader>t", group = "terminal" },
+        { "<leader>tt", "<cmd>FloatermToggle<cr>", desc = "Toggle terminal" },
+        { "<leader>ta", desc = "Add new terminal (in floaterm)" },
+        { "<leader>te", desc = "Edit terminal name (in floaterm)" },
+        { "<leader>td", desc = "Delete terminal (in floaterm)" },
+        { "<leader>tq", desc = "Quick delete terminal (in floaterm)" },
+        { "<leader>tQ", desc = "Delete all terminals (in floaterm)" },
+      })
+    end
+    
     -- Override toggle to handle invalid window IDs safely
     local floaterm = require("floaterm")
     local original_toggle = floaterm.toggle
