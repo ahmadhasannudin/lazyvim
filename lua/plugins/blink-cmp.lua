@@ -17,6 +17,14 @@ return {
       opts.keymap["<S-Tab>"] = {}
       opts.keymap["<Esc>"] = {}
       
+      -- Fix snippet parsing for LSP servers with malformed snippets
+      opts.snippets = opts.snippets or {}
+      opts.snippets.expand = function(snippet)
+        -- Clean up malformed escape sequences
+        local cleaned = snippet:gsub("\\(%$)", "%1")
+        vim.snippet.expand(cleaned)
+      end
+      
       return opts
     end,
   },

@@ -9,6 +9,11 @@ vim.opt.shiftwidth = 2 -- number of spaces to use for each step of (auto)indent
 vim.opt.softtabstop = 2 -- number of spaces that a <Tab> counts for while editing
 vim.opt.expandtab = true -- use spaces instead of tabs
 
+-- Indentation settings
+vim.opt.autoindent = true -- copy indent from current line when starting new line
+vim.opt.smartindent = true -- smart autoindenting when starting a new line
+vim.opt.copyindent = true -- copy the structure of existing lines indent
+
 vim.opt.wrap = true
 -- vim.opt.clipboard = "" -- don't use system clipboard by default
 

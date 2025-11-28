@@ -6,10 +6,97 @@ return {
     border = true,
     size = { h = 80, w = 90 },
     mappings = {
+      sidebar = function(buf)
+        -- Override default 'a' and add ta for creating terminal
+        vim.keymap.set("n", "a", function()
+          require("floaterm.api").new_term()
+        end, { buffer = buf, desc = "Add new terminal" })
+        
+        vim.keymap.set("n", "ta", function()
+          require("floaterm.api").new_term()
+        end, { buffer = buf, desc = "Add new terminal" })
+        
+        -- Override default 'e' and add te for editing
+        vim.keymap.set("n", "e", function()
+          require("floaterm.api").edit_name()
+        end, { buffer = buf, desc = "Edit terminal name" })
+        
+        vim.keymap.set("n", "te", function()
+          require("floaterm.api").edit_name()
+        end, { buffer = buf, desc = "Edit terminal name" })
+        
+        -- Override default 'd' and add td with confirmation
+        vim.keymap.set("n", "d", function()
+          local utils = require("floaterm.utils")
+          local state = require("floaterm.state")
+          local row = utils.get_buf_on_cursor()
+          
+          if row and state.terminals[row] then
+            local term_name = state.terminals[row].name
+            local term_buf = state.terminals[row].buf
+            
+            -- Close floaterm to show confirmation dialog
+            vim.cmd("FloatermToggle")
+            
+            vim.defer_fn(function()
+              vim.ui.select({"Yes", "No"}, {
+                prompt = "Delete terminal '" .. term_name .. "'?",
+              }, function(choice)
+                if choice == "Yes" then
+                  require("floaterm.api").delete_term(term_buf)
+                  -- Reopen floaterm after deletion
+                  vim.defer_fn(function()
+                    vim.cmd("FloatermToggle")
+                  end, 100)
+                else
+                  -- Reopen floaterm if cancelled
+                  vim.cmd("FloatermToggle")
+                end
+              end)
+            end, 100)
+          end
+        end, { buffer = buf, desc = "Delete terminal" })
+        
+        vim.keymap.set("n", "td", function()
+          local utils = require("floaterm.utils")
+          local state = require("floaterm.state")
+          local row = utils.get_buf_on_cursor()
+          
+          if row and state.terminals[row] then
+            local term_name = state.terminals[row].name
+            local term_buf = state.terminals[row].buf
+            
+            -- Close floaterm to show confirmation dialog
+            vim.cmd("FloatermToggle")
+            
+            vim.defer_fn(function()
+              vim.ui.select({"Yes", "No"}, {
+                prompt = "Delete terminal '" .. term_name .. "'?",
+              }, function(choice)
+                if choice == "Yes" then
+                  require("floaterm.api").delete_term(term_buf)
+                  -- Reopen floaterm after deletion
+                  vim.defer_fn(function()
+                    vim.cmd("FloatermToggle")
+                  end, 100)
+                else
+                  -- Reopen floaterm if cancelled
+                  vim.cmd("FloatermToggle")
+                end
+              end)
+            end, 100)
+          end
+        end, { buffer = buf, desc = "Delete terminal" })
+      end,
       term = function(buf)
-        -- Exit terminal mode
+        -- Exit terminal mode with jk
         vim.keymap.set("t", "jk", [[<C-\><C-n>]], { buffer = buf, desc = "Exit terminal mode" })
-        vim.keymap.set("t", "<Esc>", [[<C-\><C-n>]], { buffer = buf, desc = "Exit terminal mode" })
+        
+        -- Esc in terminal mode should toggle floaterm (minimize it)
+        vim.keymap.set("t", "<Esc>", "<cmd>FloatermToggle<cr>", { buffer = buf, desc = "Toggle floaterm" })
+        
+        -- q in normal mode should also toggle (minimize) not close session
+        vim.keymap.set("n", "q", "<cmd>FloatermToggle<cr>", { buffer = buf, desc = "Toggle floaterm" })
         
         -- Window navigation from terminal
         vim.keymap.set("t", "<C-h>", [[<C-\><C-n><C-w>h]], { buffer = buf, desc = "Navigate left" })
@@ -28,24 +115,92 @@ return {
           require("floaterm.api").new_term()
         end, { buffer = buf, desc = "New terminal" })
         
-        -- Edit current terminal name
-        vim.keymap.set({ "t", "n" }, "<C-e>", function()
+        -- Add terminal with ta
+        vim.keymap.set("t", "ta", [[<C-\><C-n>:lua require("floaterm.api").new_term()<CR>]], { buffer = buf, desc = "Add new terminal" })
+        vim.keymap.set("n", "ta", function()
+          require("floaterm.api").new_term()
+        end, { buffer = buf, desc = "Add new terminal" })
+        
+        -- Edit current terminal name with te
+        vim.keymap.set({ "t", "n" }, "te", function()
           local state = require("floaterm.state")
           local utils = require("floaterm.utils")
           local current_idx = utils.get_term_by_key(state.buf)
           if current_idx then
-            vim.ui.input({ 
-              prompt = "Terminal name: ",
-              default = state.terminals[current_idx[1]].name
-            }, function(input)
-              if input and input ~= "" then
-                state.terminals[current_idx[1]].name = input
-                require("volt").redraw(state.sidebuf, "bufs")
-                vim.notify("✓ Renamed to: " .. input, vim.log.levels.INFO)
-              end
-            end)
+            -- Close floaterm to show input dialog
+            vim.cmd("FloatermToggle")
+            vim.defer_fn(function()
+              vim.ui.input({ 
+                prompt = "Terminal name: ",
+                default = state.terminals[current_idx[1]].name
+              }, function(input)
+                if input and input ~= "" then
+                  state.terminals[current_idx[1]].name = input
+                  require("volt").redraw(state.sidebuf, "bufs")
+                  vim.notify("✓ Renamed to: " .. input, vim.log.levels.INFO)
+                end
+                -- Reopen floaterm
+                vim.defer_fn(function()
+                  vim.cmd("FloatermToggle")
+                end, 100)
+              end)
+            end, 100)
           end
-        end, { buffer = buf, desc = "Rename terminal" })
+        end, { buffer = buf, desc = "Rename terminal", noremap = true })
+        
+        -- Delete current terminal with td
+        vim.keymap.set({ "t", "n" }, "td", function()
+          local state = require("floaterm.state")
+          local utils = require("floaterm.utils")
+          local current_idx = utils.get_term_by_key(state.buf)
+          if current_idx then
+            local term_name = state.terminals[current_idx[1]].name
+            local current_buf = state.buf
+            local is_last_terminal = #state.terminals == 1
+            
+            -- Close floaterm first to show dialog in front
+            vim.cmd("FloatermToggle")
+            
+            vim.defer_fn(function()
+              vim.ui.select({"Yes", "No"}, {
+                prompt = "Delete terminal '" .. term_name .. "'?",
+              }, function(choice)
+                if choice == "Yes" then
+                  -- Delete the buffer
+                  vim.api.nvim_buf_delete(current_buf, { force = true })
+                  
+                  -- Remove from terminals list
+                  table.remove(state.terminals, current_idx[1])
+                  
+                  vim.notify("✓ Terminal '" .. term_name .. "' deleted", vim.log.levels.INFO)
+                  
+                  -- If it was the last terminal, reset state completely
+                  if is_last_terminal then
+                    state.volt_set = false
+                    state.terminals = nil
+                    state.buf = nil
+                    state.sidebuf = nil
+                    state.barbuf = nil
+                    state.win = nil
+                    state.barwin = nil
+                    state.sidewin = nil
+                    return
+                  end
+                  
+                  -- Otherwise reopen floaterm with remaining terminals
+                  vim.defer_fn(function()
+                    vim.cmd("FloatermToggle")
+                  end, 50)
+                else
+                  -- User cancelled, reopen floaterm
+                  vim.defer_fn(function()
+                    vim.cmd("FloatermToggle")
+                  end, 50)
+                end
+              end)
+            end, 100)
+          end
+        end, { buffer = buf, desc = "Delete current terminal", noremap = true })
         
         -- Terminal control mappings (pass through to shell)
         vim.keymap.set("t", "<M-BS>", "<M-BS>", { buffer = buf })
@@ -60,8 +215,27 @@ return {
         vim.keymap.set("t", "<M-b>", "<M-b>", { buffer = buf })
         vim.keymap.set("t", "<M-f>", "<M-f>", { buffer = buf })
         
-        -- Close terminal
-        vim.keymap.set("n", "q", "<cmd>FloatermToggle<cr>", { buffer = buf, desc = "Close terminal" })
+        -- Delete/terminate current terminal
+        vim.keymap.set({ "t", "n" }, "tq", function()
+          require("floaterm.api").delete_term()
+        end, { buffer = buf, desc = "Delete current terminal" })
+        
+        -- Delete all terminals
+        vim.keymap.set({ "t", "n" }, "tQ", function()
+          local state = require("floaterm.state")
+          if state.terminals and #state.terminals > 0 then
+            vim.ui.select({"Yes", "No"}, {
+              prompt = "Delete all " .. #state.terminals .. " terminal(s)?",
+            }, function(choice)
+              if choice == "Yes" then
+                while state.terminals and #state.terminals > 0 do
+                  require("floaterm.api").delete_term()
+                end
+                vim.notify("✓ All terminals deleted", vim.log.levels.INFO)
+              end
+            end)
+          end
+        end, { buffer = buf, desc = "Delete all terminals" })
       end,
     },
     terminals = {
@@ -124,8 +298,11 @@ return {
     end
   end,
   keys = {
+    -- Toggle terminal
     { "<C-\\>", "<cmd>FloatermToggle<cr>", desc = "Toggle terminal", mode = { "n", "t" } },
     { "<D-t>", "<cmd>FloatermToggle<cr>", desc = "Toggle terminal", mode = { "n", "t" } },
+    
+    -- Terminal group in which-key
     { "<leader>tt", "<cmd>FloatermToggle<cr>", desc = "Toggle terminal" },
   },
 }
