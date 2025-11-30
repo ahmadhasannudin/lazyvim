@@ -129,6 +129,8 @@ rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim && e
 | `zr` | Normal | Open folds except kinds |
 | `zm` | Normal | Close folds with |
 | `zp` | Normal | Peek folded lines |
+| `<leader>zF` | Normal | Fold all functions only (not classes) |
+| `<leader>zU` | Normal | Unfold all |
 
 ### Theme
 | Keymap | Mode | Description |
@@ -168,6 +170,28 @@ The SFTP listener automatically uploads files to remote SFTP servers when you sa
 - **Log file**: `~/.config/nvim/sftp-listener.log`
 
 ## Configuration
+
+### Global Settings
+
+Edit the `SETTINGS` table at the top of `init.lua` to customize behavior:
+
+```lua
+local SETTINGS = {
+  auto_format_on_save = false, -- Set to true to enable auto-format on save
+  follow_existing_indentation = true, -- Set to false to use smart indentation instead of copying line above when using 'o' or 'O'
+}
+```
+
+#### Settings Explained
+
+- **`auto_format_on_save`** (default: `false`)
+  - When `true`: Automatically formats files on save using LSP/formatters
+  - When `false`: Files are saved without automatic formatting
+
+- **`follow_existing_indentation`** (default: `true`)
+  - When `true`: Pressing `o` or `O` copies the exact indentation from the line above, even if incorrect
+  - When `false`: Uses smart indentation based on treesitter/syntax rules
+  - Useful when working with legacy code that has inconsistent indentation
 
 ### Auto-start Setting
 Edit `lua/config/sftp.lua` and change the `auto_start` setting:

@@ -3,6 +3,7 @@
 -- ============================================
 local SETTINGS = {
   auto_format_on_save = false, -- Set to true to enable auto-format on save
+  follow_existing_indentation = true, -- Set to false to use smart indentation instead of copying line above when using 'o' or 'O'
 }
 -- ============================================
 
@@ -11,6 +12,37 @@ vim.g.autoformat = SETTINGS.auto_format_on_save
 vim.b.autoformat = SETTINGS.auto_format_on_save
 vim.g.editorconfig = SETTINGS.auto_format_on_save
 vim.g.SETTINGS = SETTINGS -- Make available globally
+
+-- Configure indentation behavior for 'o' and 'O' commands
+if SETTINGS.follow_existing_indentation then
+  vim.opt.copyindent = true -- Copy the structure of existing lines
+  vim.opt.preserveindent = true -- Preserve existing indentation structure
+  vim.opt.autoindent = true -- Enable autoindent
+  vim.opt.smartindent = false -- Disable smartindent to truly follow existing indent
+  vim.opt.cindent = false -- Disable cindent
+  vim.opt.indentexpr = "" -- Disable indent expressions globally
+  
+  -- Ensure settings persist after ALL plugins load (including LazyVim treesitter)
+  vim.api.nvim_create_autocmd({"FileType", "BufEnter", "BufWinEnter", "BufReadPost"}, {
+    pattern = "*",
+    callback = function()
+      -- Delay to ensure this runs AFTER LazyVim's indentexpr is set
+      vim.schedule(function()
+        vim.opt_local.copyindent = true
+        vim.opt_local.preserveindent = true
+        vim.opt_local.autoindent = true
+        vim.opt_local.smartindent = false
+        vim.opt_local.cindent = false
+        vim.opt_local.indentexpr = "" -- Clear LazyVim's treesitter indentexpr
+        vim.opt_local.lisp = false
+      end)
+    end,
+  })
+else
+  vim.opt.copyindent = false
+  vim.opt.preserveindent = false
+  vim.opt.smartindent = true -- Enable smart indenting
+end
 
 -- Block LSP formatting on save if disabled
 if not SETTINGS.auto_format_on_save then
