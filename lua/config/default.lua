@@ -3,6 +3,12 @@ vim.o.scrolloff = 8 -- vertical padding when moving cursor
 vim.opt.cmdheight = 2 -- more space at the bottom
 vim.g.autoformat = false
 
+-- Hide tabline (0 = never, 1 = when 2+ tabs, 2 = always)
+vim.opt.showtabline = 0
+
+-- Increase timeout for key combinations (default is 1000ms)
+vim.opt.timeoutlen = 2000 -- 2 seconds to complete key combinations like tD, td, te, etc.
+
 -- Tab settings
 vim.opt.tabstop = 2 -- number of spaces that a <Tab> in the file counts for
 vim.opt.shiftwidth = 2 -- number of spaces to use for each step of (auto)indent

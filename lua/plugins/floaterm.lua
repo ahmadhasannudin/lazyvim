@@ -115,14 +115,13 @@ return {
           require("floaterm.api").new_term()
         end, { buffer = buf, desc = "New terminal" })
         
-        -- Add terminal with ta
-        vim.keymap.set("t", "ta", [[<C-\><C-n>:lua require("floaterm.api").new_term()<CR>]], { buffer = buf, desc = "Add new terminal" })
+        -- Add terminal with ta (only in normal mode to avoid conflicts with typing)
         vim.keymap.set("n", "ta", function()
           require("floaterm.api").new_term()
         end, { buffer = buf, desc = "Add new terminal" })
         
-        -- Edit current terminal name with te
-        vim.keymap.set({ "t", "n" }, "te", function()
+        -- Edit current terminal name with te (only in normal mode to avoid conflicts with typing)
+        vim.keymap.set("n", "te", function()
           local state = require("floaterm.state")
           local utils = require("floaterm.utils")
           local current_idx = utils.get_term_by_key(state.buf)
@@ -148,8 +147,8 @@ return {
           end
         end, { buffer = buf, desc = "Rename terminal", noremap = true })
         
-        -- Delete current terminal with td
-        vim.keymap.set({ "t", "n" }, "td", function()
+        -- Delete current terminal with td (only in normal mode to avoid conflicts with typing)
+        vim.keymap.set("n", "td", function()
           local state = require("floaterm.state")
           local utils = require("floaterm.utils")
           local current_idx = utils.get_term_by_key(state.buf)
@@ -214,28 +213,6 @@ return {
         vim.keymap.set("t", "<M-Right>", "<M-Right>", { buffer = buf })
         vim.keymap.set("t", "<M-b>", "<M-b>", { buffer = buf })
         vim.keymap.set("t", "<M-f>", "<M-f>", { buffer = buf })
-        
-        -- Delete/terminate current terminal
-        vim.keymap.set({ "t", "n" }, "tq", function()
-          require("floaterm.api").delete_term()
-        end, { buffer = buf, desc = "Delete current terminal" })
-        
-        -- Delete all terminals
-        vim.keymap.set({ "t", "n" }, "tQ", function()
-          local state = require("floaterm.state")
-          if state.terminals and #state.terminals > 0 then
-            vim.ui.select({"Yes", "No"}, {
-              prompt = "Delete all " .. #state.terminals .. " terminal(s)?",
-            }, function(choice)
-              if choice == "Yes" then
-                while state.terminals and #state.terminals > 0 do
-                  require("floaterm.api").delete_term()
-                end
-                vim.notify("✓ All terminals deleted", vim.log.levels.INFO)
-              end
-            end)
-          end
-        end, { buffer = buf, desc = "Delete all terminals" })
       end,
     },
     terminals = function()
@@ -307,6 +284,7 @@ return {
         { "<leader>ta", desc = "Add new terminal (in floaterm)" },
         { "<leader>te", desc = "Edit terminal name (in floaterm)" },
         { "<leader>td", desc = "Delete terminal (in floaterm)" },
+        { "<leader>tD", desc = "Delete all terminals (in floaterm)" },
         { "<leader>tq", desc = "Quick delete terminal (in floaterm)" },
         { "<leader>tQ", desc = "Delete all terminals (in floaterm)" },
       })

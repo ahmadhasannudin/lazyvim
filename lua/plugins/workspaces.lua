@@ -148,7 +148,7 @@ return {
     "folke/persistence.nvim",
     event = "BufReadPre",
     opts = {
-      options = { "buffers", "curdir", "tabpages", "winsize", "help", "globals", "skiprtp" },
+      options = { "buffers", "curdir", "winsize", "help", "globals", "skiprtp" },
       dir = vim.fn.stdpath("state") .. "/sessions/",
     },
     keys = {
