@@ -110,6 +110,25 @@ rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim && e
 | `<leader>gV` | Normal | Close diffview |
 | `<leader>gfh` | Normal | File history (current file) |
 | `<leader>gbh` | Normal | Branch history (all files) |
+| `<Tab>` | Diffview | Switch between file panel and diff view |
+| `X` | Diffview (file panel) | **Restore file (revert all changes)** |
+| `gf` | Diffview | Close diffview and edit actual file |
+
+### Git (Gitsigns)
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `]h` / `[h` | Normal | Next/prev hunk (change) |
+| `]H` / `[H` | Normal | Last/first hunk |
+| `<leader>ghs` | Normal/Visual | Stage hunk |
+| `<leader>ghr` | Normal/Visual | **Reset/undo hunk (revert changes)** |
+| `<leader>ghS` | Normal | Stage buffer (all changes) |
+| `<leader>ghu` | Normal | Undo stage hunk |
+| `<leader>ghR` | Normal | Reset buffer (revert all changes) |
+| `<leader>ghp` | Normal | Preview hunk inline |
+| `<leader>ghb` | Normal | Blame line |
+| `<leader>ghB` | Normal | Blame buffer |
+| `<leader>ghd` | Normal | Diff this |
+| `ih` | Operator/Visual | Select hunk (text object) |
 
 ### Workspace & Sessions
 | Keymap | Mode | Description |

@@ -24,6 +24,19 @@ return {
         layout = "diff2_horizontal",
       },
     },
+    keymaps = {
+      view = {
+        -- Open actual file to edit and use gitsigns
+        { "n", "gf", "<cmd>DiffviewClose<CR><cmd>e #<CR>", { desc = "Edit file (close diffview)" } },
+      },
+      file_panel = {
+        -- Restore file (revert all changes)
+        { "n", "X", function()
+          local actions = require("diffview.actions")
+          actions.restore_entry()
+        end, { desc = "Restore file (revert all)" } },
+      },
+    },
   },
   keys = {
     {
