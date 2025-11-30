@@ -197,3 +197,30 @@ vim.keymap.set("i", "<D-BS>", "<C-o>d0", { desc = "Delete word backward" })
 vim.keymap.set("n", "<leader>n", function()
   require("noice").cmd("telescope")
 end, { desc = "Noice Picker (Telescope)" })
+
+-- Delete all buffers except current
+vim.keymap.set("n", "<leader>bD", function()
+  local current_buf = vim.api.nvim_get_current_buf()
+  for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+    if buf ~= current_buf and vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype ~= "terminal" then
+      vim.api.nvim_buf_delete(buf, { force = false })
+    end
+  end
+  vim.notify("✓ Deleted all buffers except current", vim.log.levels.INFO)
+end, { desc = "Delete all buffers except current" })
+
+-- Delete all buffers
+vim.keymap.set("n", "<leader>bX", function()
+  vim.ui.select({ "Yes", "No" }, {
+    prompt = "Delete all buffers?",
+  }, function(choice)
+    if choice == "Yes" then
+      for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+        if vim.api.nvim_buf_is_valid(buf) and vim.bo[buf].buftype ~= "terminal" then
+          vim.api.nvim_buf_delete(buf, { force = false })
+        end
+      end
+      vim.notify("✓ Deleted all buffers", vim.log.levels.INFO)
+    end
+  end)
+end, { desc = "Delete all buffers" })
