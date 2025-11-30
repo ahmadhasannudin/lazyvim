@@ -224,3 +224,86 @@ vim.keymap.set("n", "<leader>bX", function()
     end
   end)
 end, { desc = "Delete all buffers" })
+
+-- Fold all functions only (not classes)
+vim.keymap.set("n", "<leader>zF", function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local parser = vim.treesitter.get_parser(bufnr)
+  if not parser then
+    vim.notify("✗ Treesitter parser not available", vim.log.levels.WARN)
+    return
+  end
+
+  local tree = parser:parse()[1]
+  local root = tree:root()
+  local lang = parser:lang()
+
+  -- Define function node types for different languages
+  local function_types = {
+    javascript = { "function_declaration", "method_definition", "arrow_function" },
+    typescript = { "function_declaration", "method_definition", "arrow_function" },
+    python = { "function_definition" },
+    lua = { "function_declaration", "function_definition" },
+    go = { "function_declaration", "method_declaration" },
+    php = { "function_definition", "method_declaration", "anonymous_function" },
+    rust = { "function_item" },
+    java = { "method_declaration" },
+    c = { "function_definition" },
+    cpp = { "function_definition" },
+  }
+
+  local types = function_types[lang]
+  if not types then
+    vim.notify("✗ Language not supported for function folding: " .. lang, vim.log.levels.WARN)
+    return
+  end
+
+  -- Save current fold settings
+  local saved_foldmethod = vim.wo.foldmethod
+  
+  -- Set foldmethod to manual to allow manual fold creation
+  vim.wo.foldmethod = "manual"
+  
+  -- First, unfold everything and delete all folds
+  vim.cmd("normal! zE")
+  vim.cmd("normal! zR")
+
+  local count = 0
+  local query_str = "(" .. table.concat(types, ") @func (") .. ") @func"
+  local ok, query = pcall(vim.treesitter.query.parse, lang, query_str)
+  
+  if not ok then
+    vim.notify("✗ Failed to create query", vim.log.levels.ERROR)
+    vim.wo.foldmethod = saved_foldmethod
+    return
+  end
+
+  -- Collect all function nodes first
+  local function_nodes = {}
+  for _, node in query:iter_captures(root, bufnr, 0, -1) do
+    table.insert(function_nodes, node)
+  end
+
+  -- Sort by line number (reverse order to avoid cursor position issues)
+  table.sort(function_nodes, function(a, b)
+    local a_start = a:range()
+    local b_start = b:range()
+    return a_start > b_start
+  end)
+
+  -- Create folds for each function
+  for _, node in ipairs(function_nodes) do
+    local start_row, _, end_row, _ = node:range()
+    vim.api.nvim_win_set_cursor(0, { start_row + 1, 0 })
+    vim.cmd(string.format("%d,%dfold", start_row + 1, end_row + 1))
+    count = count + 1
+  end
+
+  vim.notify("✓ Folded " .. count .. " function(s)", vim.log.levels.INFO)
+end, { desc = "Fold all functions only" })
+
+-- Unfold all
+vim.keymap.set("n", "<leader>zU", function()
+  vim.cmd("normal! zR")
+  vim.notify("✓ Unfolded all", vim.log.levels.INFO)
+end, { desc = "Unfold all" })
