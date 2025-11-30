@@ -238,12 +238,64 @@ return {
         end, { buffer = buf, desc = "Delete all terminals" })
       end,
     },
-    terminals = {
-      { name = "Terminal" },
-    },
+    terminals = function()
+      local workspaces_ok, workspaces = pcall(require, "workspaces")
+      local workspace_name = vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+      
+      if workspaces_ok then
+        local current_dir = vim.fn.getcwd()
+        local ws_list = workspaces.get()
+        for _, ws in ipairs(ws_list) do
+          if ws.path == current_dir then
+            workspace_name = ws.name
+            break
+          end
+        end
+      end
+      
+      return { { name = workspace_name .. "-1" } }
+    end,
   },
   config = function(_, opts)
     require("floaterm").setup(opts)
+    
+    -- Helper function to get workspace name
+    local function get_workspace_name()
+      local workspaces_ok, workspaces = pcall(require, "workspaces")
+      if workspaces_ok then
+        local current_dir = vim.fn.getcwd()
+        local ws_list = workspaces.get()
+        for _, ws in ipairs(ws_list) do
+          if ws.path == current_dir then
+            return ws.name
+          end
+        end
+      end
+      return vim.fn.fnamemodify(vim.fn.getcwd(), ":t")
+    end
+    
+    -- Override new_term to use workspace-based naming
+    local floaterm_api = require("floaterm.api")
+    local original_new_term = floaterm_api.new_term
+    
+    floaterm_api.new_term = function()
+      local state = require("floaterm.state")
+      local workspace_name = get_workspace_name()
+      local next_index = state.terminals and (#state.terminals + 1) or 1
+      local term_name = workspace_name .. "-" .. next_index
+      
+      original_new_term()
+      
+      -- Set the name after creating the terminal
+      vim.defer_fn(function()
+        if state.terminals and #state.terminals > 0 then
+          state.terminals[#state.terminals].name = term_name
+          if state.sidebuf and vim.api.nvim_buf_is_valid(state.sidebuf) then
+            require("volt").redraw(state.sidebuf, "bufs")
+          end
+        end
+      end, 50)
+    end
     
     -- Register which-key mappings for floaterm
     local wk_ok, wk = pcall(require, "which-key")
