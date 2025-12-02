@@ -135,121 +135,191 @@ return {
       {
         "<D-p>",
         function()
-          -- Custom picker that shows recent files + all files (VSCode-like)
+          local pickers = require("telescope.pickers")
+          local finders = require("telescope.finders")
+          local conf = require("telescope.config").values
+          local actions = require("telescope.actions")
+          local action_state = require("telescope.actions.state")
+          local sorters = require("telescope.sorters")
+          local entry_display = require("telescope.pickers.entry_display")
           
-          -- Get current working directory
-          local cwd = vim.fn.getcwd()
+          -- State for toggles
+          local show_hidden = true
+          local show_ignored = false
           
-          -- Get open buffers (highest priority) - in REVERSE order (most recent first)
-          local open_buffers = {}
-          local buffer_files = {}
-          local bufs = vim.api.nvim_list_bufs()
-          
-          -- Reverse iterate to get most recent buffer first
-          for i = #bufs, 1, -1 do
-            local buf = bufs[i]
-            local name = vim.api.nvim_buf_get_name(buf)
-            if name ~= "" and vim.fn.filereadable(name) == 1 then
-              local relative = vim.fn.fnamemodify(name, ":.")
-              if not open_buffers[relative] then
-                table.insert(buffer_files, relative)
-                open_buffers[relative] = true
+          local function create_picker(opts)
+            opts = opts or {}
+            local hidden = opts.hidden or show_hidden
+            local ignored = opts.ignored or show_ignored
+            
+            -- Get current working directory
+            local cwd = vim.fn.getcwd()
+            
+            -- Get open buffers (highest priority) - in REVERSE order (most recent first)
+            local open_buffers = {}
+            local buffer_files = {}
+            local bufs = vim.api.nvim_list_bufs()
+            
+            for i = #bufs, 1, -1 do
+              local buf = bufs[i]
+              local name = vim.api.nvim_buf_get_name(buf)
+              if name ~= "" and vim.fn.filereadable(name) == 1 then
+                local relative = vim.fn.fnamemodify(name, ":.")
+                if not open_buffers[relative] then
+                  table.insert(buffer_files, relative)
+                  open_buffers[relative] = true
+                end
               end
             end
-          end
-          
-          -- Get recent files from oldfiles (filtered to current project, already in order)
-          local oldfiles = vim.v.oldfiles or {}
-          local recent_files = {}
-          local recent_set = vim.tbl_extend("force", {}, open_buffers)
-          
-          for _, file in ipairs(oldfiles) do
-            if file:find(cwd, 1, true) == 1 and vim.fn.filereadable(file) == 1 then
-              local relative = vim.fn.fnamemodify(file, ":.")
-              if not recent_set[relative] then
-                table.insert(recent_files, relative)
-                recent_set[relative] = true
-              end
+            
+            -- Build fd command based on toggles
+            local fd_cmd = "fd --type f --color never"
+            if hidden then
+              fd_cmd = fd_cmd .. " --hidden"
             end
-          end
-          
-          Snacks.picker.pick("files", {
-            layout = {
-              preview = false,
-            },
-            matcher = {
-              -- Custom scoring to keep buffers on top during search
-              score = function(item, query)
-                if query == "" then
-                  return item.base_score or 0
+            if not ignored then
+              fd_cmd = fd_cmd .. " --exclude .git --exclude node_modules --exclude vendor"
+            end
+            
+            -- Collect all files
+            local all_files = {}
+            local handle = io.popen(fd_cmd)
+            if handle then
+              for line in handle:lines() do
+                if not open_buffers[line] then
+                  table.insert(all_files, line)
                 end
-                
-                -- Match against file path
-                local text = item.file or ""
-                
-                -- Simple substring matching
-                if text:lower():find(query:lower(), 1, true) then
-                  -- Use base_score which heavily favors recent files
-                  return item.base_score or 0
-                end
-                
-                return -1 -- No match
-              end,
-            },
-            finder = function(opts, list_opts)
-              local items = {}
-              local idx = 1
-              
-              -- Add open buffers first (most recent first)
-              for _, file in ipairs(buffer_files) do
-                local base = 1000000 + (10000 - idx) -- Much higher base for buffers
-                table.insert(items, { 
-                  file = file,
-                  text = "+ " .. file,
-                  idx = idx,
-                  score = base,
-                  base_score = base,
-                  is_buffer = true,
-                })
-                idx = idx + 1
               end
-              
-              -- Add recent files
-              for _, file in ipairs(recent_files) do
-                local base = 100000 + (10000 - idx) -- High base for recent
-                table.insert(items, { 
-                  file = file,
-                  text = "- " .. file,
-                  idx = idx,
-                  score = base,
-                  base_score = base,
-                  is_recent = true,
-                })
-                idx = idx + 1
-              end
-              
-              -- Then add all other files using fd command
-              local handle = io.popen("fd --type f --hidden --exclude .git --exclude node_modules --exclude vendor")
-              if handle then
-                for line in handle:lines() do
-                  if not recent_set[line] then
-                    local base = 100 - idx -- Very low base for regular files
-                    table.insert(items, { 
-                      file = line,
-                      text = "  " .. line,
-                      idx = idx,
-                      score = base,
-                      base_score = base,
-                    })
-                    idx = idx + 1
+              handle:close()
+            end
+            
+            -- Custom sorter that ALWAYS shows matched buffers first, then matched files
+            local default_sorter = conf.file_sorter({})
+            local custom_sorter = sorters.Sorter:new({
+              scoring_function = function(_, prompt, line, entry)
+                if not prompt or prompt == "" then
+                  -- No search: show buffers first, then files
+                  if entry.is_buffer then
+                    return -1000000 - entry.idx -- Very negative = appears first
+                  else
+                    return entry.idx -- Positive = appears later
                   end
                 end
-                handle:close()
-              end
-              
-              return items
-            end,
-          })
+                
+                -- With search: get normal score from telescope
+                local score = default_sorter:scoring_function(prompt, line)
+                
+                -- CRITICAL FIX: If score is too high (no match), filter it out
+                -- Telescope's fuzzy matcher returns very high scores for non-matches
+                if score == -1 or score > 1000000 then
+                  -- This entry doesn't match the search - hide it completely
+                  return -1  -- Return -1 to indicate no match (Telescope convention)
+                end
+                
+                -- CRITICAL: Ensure buffers ALWAYS come before files
+                -- by putting them in a completely different score range
+                if entry.is_buffer then
+                  -- Buffers: score range [-2000000, -1000000]
+                  -- Lower score = better match = appears first
+                  return -2000000 + score
+                else
+                  -- Files: score range [0, 1000000]
+                  -- This ensures even the WORST matching buffer appears before the BEST matching file
+                  return score
+                end
+              end,
+              highlighter = function(_, prompt, display)
+                return default_sorter:highlighter(prompt, display)
+              end,
+            })
+            
+            -- Prepare all entries
+            local results = {}
+            
+            -- Add open buffers first
+            for idx, file in ipairs(buffer_files) do
+              table.insert(results, {
+                "+ " .. file,
+                file = file,
+                is_buffer = true,
+                idx = idx,
+              })
+            end
+            
+            -- Add all other files
+            for idx, file in ipairs(all_files) do
+              table.insert(results, {
+                "  " .. file,
+                file = file,
+                is_buffer = false,
+                idx = idx + #buffer_files,
+              })
+            end
+            
+            local title = "Find Files"
+            if hidden then title = title .. " [Hidden]" end
+            if ignored then title = title .. " [Ignored]" end
+            
+            pickers
+              .new(opts, {
+                prompt_title = title,
+                finder = finders.new_table({
+                  results = results,
+                  entry_maker = function(entry)
+                    return {
+                      value = entry.file,
+                      display = entry[1],
+                      ordinal = entry.file,
+                      path = entry.file,
+                      is_buffer = entry.is_buffer,
+                      idx = entry.idx,
+                    }
+                  end,
+                }),
+                sorter = custom_sorter,
+                previewer = nil,
+                attach_mappings = function(prompt_bufnr, map)
+                  actions.select_default:replace(function()
+                    actions.close(prompt_bufnr)
+                    local selection = action_state.get_selected_entry()
+                    if selection then
+                      vim.cmd("edit " .. vim.fn.fnameescape(selection.path))
+                    end
+                  end)
+                  
+                  -- S-i to toggle hidden files
+                  map("i", "<S-i>", function()
+                    actions.close(prompt_bufnr)
+                    vim.schedule(function()
+                      show_hidden = not show_hidden
+                      create_picker({ hidden = show_hidden, ignored = show_ignored })
+                    end)
+                  end)
+                  
+                  -- S-h to toggle ignored files
+                  map("i", "<S-h>", function()
+                    actions.close(prompt_bufnr)
+                    vim.schedule(function()
+                      show_ignored = not show_ignored
+                      create_picker({ hidden = show_hidden, ignored = show_ignored })
+                    end)
+                  end)
+                  
+                  return true
+                end,
+                layout_strategy = "vertical",
+                layout_config = {
+                  prompt_position = "top",
+                  width = { 0.6, min = 80 },
+                  height = 0.95,
+                  preview_cutoff = 0,
+                },
+                sorting_strategy = "ascending",
+              })
+              :find()
+          end
+          
+          create_picker()
         end,
         desc = "Find files (Cmd+P)",
       },
