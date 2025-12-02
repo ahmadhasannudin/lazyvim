@@ -127,7 +127,16 @@ return {
       {
         "<leader>pw",
         function()
-          require("telescope").extensions.workspaces.workspaces()
+          require("telescope").extensions.workspaces.workspaces({
+            layout_strategy = "vertical",
+            layout_config = {
+              prompt_position = "top",
+              width = { 0.6, min = 80 },
+              height = 0.95,
+              preview_cutoff = 0,
+            },
+            sorting_strategy = "ascending",
+          })
         end,
         desc = "Open Workspace",
       },
