@@ -78,7 +78,7 @@ rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim && e
 | Keymap | Mode | Description |
 |--------|------|-------------|
 | `<leader>bD` | Normal | Delete all buffers except current |
-| `<leader>bX` | Normal | Delete all buffers (with confirm) |
+| `<leader>bb` | Normal | Delete all buffers (with confirm) |
 
 ### Terminal (Floaterm)
 | Keymap | Mode | Description |

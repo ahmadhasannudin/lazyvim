@@ -212,7 +212,7 @@ vim.keymap.set("n", "<leader>bD", function()
 end, { desc = "Delete all buffers except current" })
 
 -- Delete all buffers
-vim.keymap.set("n", "<leader>bX", function()
+vim.keymap.set("n", "<leader>bb", function()
   vim.ui.select({ "Yes", "No" }, {
     prompt = "Delete all buffers?",
   }, function(choice)
