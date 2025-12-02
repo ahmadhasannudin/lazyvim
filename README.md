@@ -40,6 +40,7 @@ rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim && e
 ### File Operations
 | Keymap | Mode | Description |
 |--------|------|-------------|
+| `<Cmd-p>` | Normal | **VSCode-like file picker** (recent files first, then all files) |
 | `<leader>fn` | Normal | Create new file |
 | `<leader>fN` | Normal | Create new file here (current dir) |
 | `<leader>yfp` | Normal | Copy full file path |

@@ -75,12 +75,14 @@ end, { desc = "Go to Symbol" })
 
 -- PHP-specific keybinding: - to add semicolon at end of line
 vim.api.nvim_create_autocmd("FileType", {
-  pattern = "php",
+  pattern = { "php", "blade" },
   callback = function()
-    vim.keymap.set("n", "-", "A;<Esc>", { buffer = true, desc = "Add semicolon at end of line" })
+    vim.keymap.set("n", "-", "A;<Esc>", {
+      buffer = true,
+      desc = "Add semicolon at end of line",
+    })
   end,
 })
-
 -- Theme Selector (like NvChad)
 vim.keymap.set("n", "<leader>th", function()
   require("config.themes").theme_selector_simple()
