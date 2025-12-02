@@ -141,7 +141,6 @@ return {
           local actions = require("telescope.actions")
           local action_state = require("telescope.actions.state")
           local sorters = require("telescope.sorters")
-          local entry_display = require("telescope.pickers.entry_display")
           
           -- State for toggles
           local show_hidden = true
@@ -152,108 +151,101 @@ return {
             local hidden = opts.hidden or show_hidden
             local ignored = opts.ignored or show_ignored
             
-            -- Get current working directory
-            local cwd = vim.fn.getcwd()
-            
-            -- Get open buffers (highest priority) - in REVERSE order (most recent first)
+            -- Get open buffers sorted by most recent access time
             local open_buffers = {}
-            local buffer_files = {}
-            local bufs = vim.api.nvim_list_bufs()
+            local buffer_list = {}
             
-            for i = #bufs, 1, -1 do
-              local buf = bufs[i]
-              local name = vim.api.nvim_buf_get_name(buf)
-              if name ~= "" and vim.fn.filereadable(name) == 1 then
-                local relative = vim.fn.fnamemodify(name, ":.")
-                if not open_buffers[relative] then
-                  table.insert(buffer_files, relative)
-                  open_buffers[relative] = true
+            -- Collect all valid buffers with their last used time
+            for _, buf in ipairs(vim.api.nvim_list_bufs()) do
+              if vim.api.nvim_buf_is_valid(buf) then
+                local name = vim.api.nvim_buf_get_name(buf)
+                if name ~= "" and vim.fn.filereadable(name) == 1 then
+                  local relative = vim.fn.fnamemodify(name, ":.")
+                  local lastused = vim.fn.getbufinfo(buf)[1].lastused
+                  table.insert(buffer_list, {
+                    file = relative,
+                    lastused = lastused,
+                    bufnr = buf,
+                  })
                 end
               end
             end
             
-            -- Build fd command based on toggles
-            local fd_cmd = "fd --type f --color never"
-            if hidden then
-              fd_cmd = fd_cmd .. " --hidden"
-            end
-            if not ignored then
-              fd_cmd = fd_cmd .. " --exclude .git --exclude node_modules --exclude vendor"
+            -- Sort by lastused (most recent first)
+            table.sort(buffer_list, function(a, b)
+              return a.lastused > b.lastused  -- Higher timestamp = more recent = should be first
+            end)
+            
+            -- Extract sorted file list (REVERSE to put most recent at top)
+            local buffer_files = {}
+            for i = #buffer_list, 1, -1 do
+              local item = buffer_list[i]
+              if not open_buffers[item.file] then
+                buffer_files[#buffer_files + 1] = item.file
+                open_buffers[item.file] = true
+              end
             end
             
-            -- Collect all files
+            -- Build fd command
+            local fd_cmd = "fd --type f --color never"
+            if hidden then fd_cmd = fd_cmd .. " --hidden" end
+            if not ignored then fd_cmd = fd_cmd .. " --exclude .git --exclude node_modules --exclude vendor" end
+            
+            -- Collect all files (exclude already open buffers)
             local all_files = {}
             local handle = io.popen(fd_cmd)
             if handle then
               for line in handle:lines() do
                 if not open_buffers[line] then
-                  table.insert(all_files, line)
+                  all_files[#all_files + 1] = line
                 end
               end
               handle:close()
             end
             
-            -- Custom sorter that ALWAYS shows matched buffers first, then matched files
+            -- Custom sorter: matched buffers first, then matched files
             local default_sorter = conf.file_sorter({})
             local custom_sorter = sorters.Sorter:new({
               scoring_function = function(_, prompt, line, entry)
                 if not prompt or prompt == "" then
-                  -- No search: show buffers first, then files
-                  if entry.is_buffer then
-                    return -1000000 - entry.idx -- Very negative = appears first
-                  else
-                    return entry.idx -- Positive = appears later
-                  end
+                  return entry.is_buffer and (-1000000 - entry.idx) or entry.idx
                 end
                 
-                -- With search: get normal score from telescope
                 local score = default_sorter:scoring_function(prompt, line)
                 
-                -- CRITICAL FIX: If score is too high (no match), filter it out
-                -- Telescope's fuzzy matcher returns very high scores for non-matches
+                -- Filter out non-matches
                 if score == -1 or score > 1000000 then
-                  -- This entry doesn't match the search - hide it completely
-                  return -1  -- Return -1 to indicate no match (Telescope convention)
+                  return -1
                 end
                 
-                -- CRITICAL: Ensure buffers ALWAYS come before files
-                -- by putting them in a completely different score range
-                if entry.is_buffer then
-                  -- Buffers: score range [-2000000, -1000000]
-                  -- Lower score = better match = appears first
-                  return -2000000 + score
-                else
-                  -- Files: score range [0, 1000000]
-                  -- This ensures even the WORST matching buffer appears before the BEST matching file
-                  return score
-                end
+                -- Buffers in range [-2000000, -1000000], files in [0, 1000000]
+                return entry.is_buffer and (-2000000 + score) or score
               end,
               highlighter = function(_, prompt, display)
                 return default_sorter:highlighter(prompt, display)
               end,
             })
             
-            -- Prepare all entries
+            -- Prepare entries
             local results = {}
+            local n_buffers = #buffer_files
             
-            -- Add open buffers first
             for idx, file in ipairs(buffer_files) do
-              table.insert(results, {
-                "+ " .. file,
+              results[#results + 1] = {
+                display = "+ " .. file,
                 file = file,
                 is_buffer = true,
                 idx = idx,
-              })
+              }
             end
             
-            -- Add all other files
             for idx, file in ipairs(all_files) do
-              table.insert(results, {
-                "  " .. file,
+              results[#results + 1] = {
+                display = "  " .. file,
                 file = file,
                 is_buffer = false,
-                idx = idx + #buffer_files,
-              })
+                idx = idx + n_buffers,
+              }
             end
             
             local title = "Find Files"
@@ -268,7 +260,7 @@ return {
                   entry_maker = function(entry)
                     return {
                       value = entry.file,
-                      display = entry[1],
+                      display = entry.display,
                       ordinal = entry.file,
                       path = entry.file,
                       is_buffer = entry.is_buffer,
