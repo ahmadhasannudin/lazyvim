@@ -144,14 +144,14 @@ function M.upload(filepath)
     hide_progress("upload_file")
     if err then
       vim.notify("SFTP ❌ " .. err, vim.log.levels.ERROR)
-    elseif response then
-      if type(response) == "table" then
-        if response.success then
-          vim.notify("SFTP ✓ " .. filename, vim.log.levels.INFO)
-        else
-          vim.notify("SFTP ❌ " .. (response.message or "failed"), vim.log.levels.ERROR)
-        end
-      end
+    -- elseif response then
+    --   if type(response) == "table" then
+    --     if response.success then
+    --       vim.notify("SFTP ✓ " .. filename, vim.log.levels.INFO)
+    --     else
+    --       vim.notify("SFTP ❌ " .. (response.message or "failed"), vim.log.levels.ERROR)
+    --     end
+    --   end
     end
   end)
 end

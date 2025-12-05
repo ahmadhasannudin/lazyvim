@@ -3,12 +3,14 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/pkg/sftp"
 	"golang.org/x/crypto/ssh"
@@ -49,11 +51,106 @@ type UploadResponse struct {
 	File    string `json:"file"`
 }
 
+type ConnectionPool struct {
+	connections map[string]*PooledConnection
+	mu          sync.RWMutex
+}
+
+type PooledConnection struct {
+	sshConn    *ssh.Client
+	sftpClient *sftp.Client
+	lastUsed   time.Time
+	mu         sync.Mutex
+}
+
 var (
-	appConfig   Config
-	configMutex sync.RWMutex
-	configPath  string
+	appConfig      Config
+	configMutex    sync.RWMutex
+	configPath     string
+	connectionPool = &ConnectionPool{
+		connections: make(map[string]*PooledConnection),
+	}
 )
+
+func (p *ConnectionPool) getConnection(config ProjectConfig) (*sftp.Client, error) {
+	key := fmt.Sprintf("%s:%s@%s:%s", config.SFTPUser, config.SFTPHost, config.SFTPPort, config.SFTPBasePath)
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	// Check if we have a valid connection
+	if conn, exists := p.connections[key]; exists {
+		conn.mu.Lock()
+		defer conn.mu.Unlock()
+
+		// Test if connection is still alive
+		if _, err := conn.sftpClient.Getwd(); err == nil {
+			conn.lastUsed = time.Now()
+			return conn.sftpClient, nil
+		}
+
+		// Connection is dead, clean it up
+		conn.sftpClient.Close()
+		conn.sshConn.Close()
+		delete(p.connections, key)
+	}
+
+	// Create new connection
+	sshConfig := &ssh.ClientConfig{
+		User: config.SFTPUser,
+		Auth: []ssh.AuthMethod{
+			ssh.Password(config.SFTPPassword),
+		},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+		Timeout:         10 * time.Second,
+	}
+
+	sshConn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", config.SFTPHost, config.SFTPPort), sshConfig)
+	if err != nil {
+		return nil, fmt.Errorf("failed to dial: %w", err)
+	}
+
+	sftpClient, err := sftp.NewClient(sshConn)
+	if err != nil {
+		sshConn.Close()
+		return nil, fmt.Errorf("failed to create SFTP client: %w", err)
+	}
+
+	pooledConn := &PooledConnection{
+		sshConn:    sshConn,
+		sftpClient: sftpClient,
+		lastUsed:   time.Now(),
+	}
+
+	p.connections[key] = pooledConn
+	return sftpClient, nil
+}
+
+func (p *ConnectionPool) cleanup() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	now := time.Now()
+	for key, conn := range p.connections {
+		if now.Sub(conn.lastUsed) > 5*time.Minute {
+			conn.mu.Lock()
+			conn.sftpClient.Close()
+			conn.sshConn.Close()
+			conn.mu.Unlock()
+			delete(p.connections, key)
+			log.Printf("Cleaned up idle connection: %s", key)
+		}
+	}
+}
+
+func startConnectionCleanup() {
+	ticker := time.NewTicker(1 * time.Minute)
+	go func() {
+		for range ticker.C {
+			connectionPool.cleanup()
+		}
+	}()
+}
 
 func main() {
 	configPath = os.Getenv("CONFIG_PATH")
@@ -64,6 +161,9 @@ func main() {
 	if err := loadConfig(); err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
+
+	// Start connection cleanup goroutine
+	startConnectionCleanup()
 
 	configMutex.RLock()
 	serverPort := appConfig.ServerPort
@@ -248,25 +348,10 @@ func handleUpload(w http.ResponseWriter, r *http.Request) {
 }
 
 func uploadFile(config ProjectConfig, localPath string) error {
-	sshConfig := &ssh.ClientConfig{
-		User: config.SFTPUser,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(config.SFTPPassword),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", config.SFTPHost, config.SFTPPort), sshConfig)
+	client, err := connectionPool.getConnection(config)
 	if err != nil {
-		return fmt.Errorf("failed to dial: %w", err)
+		return err
 	}
-	defer conn.Close()
-
-	client, err := sftp.NewClient(conn)
-	if err != nil {
-		return fmt.Errorf("failed to create SFTP client: %w", err)
-	}
-	defer client.Close()
 
 	srcFile, err := os.Open(localPath)
 	if err != nil {
@@ -289,7 +374,9 @@ func uploadFile(config ProjectConfig, localPath string) error {
 	}
 	defer dstFile.Close()
 
-	if _, err := dstFile.ReadFrom(srcFile); err != nil {
+	// Use buffered copy for better performance
+	buf := make([]byte, 32*1024) // 32KB buffer
+	if _, err := io.CopyBuffer(dstFile, srcFile, buf); err != nil {
 		return fmt.Errorf("failed to upload file: %w", err)
 	}
 
@@ -341,17 +428,14 @@ func handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("[%s] Uploading folder: %s", req.BaseRoot, req.FolderPath)
 
-	fileCount := 0
+	// Collect all files first
+	var filesToUpload []string
 	err := filepath.Walk(req.FolderPath, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
 		if !info.IsDir() {
-			if err := uploadFile(projectConfig, path); err != nil {
-				log.Printf("[%s] Failed to upload %s: %v", req.BaseRoot, path, err)
-			} else {
-				fileCount++
-			}
+			filesToUpload = append(filesToUpload, path)
 		}
 		return nil
 	})
@@ -360,7 +444,46 @@ func handleUploadFolder(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(UploadResponse{
 			Success: false,
-			Message: fmt.Sprintf("Folder upload failed: %v", err),
+			Message: fmt.Sprintf("Folder scan failed: %v", err),
+		})
+		return
+	}
+
+	// Upload files in parallel with limited concurrency
+	const maxConcurrency = 10
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+	var uploadMutex sync.Mutex
+	fileCount := 0
+	var uploadErrors []string
+
+	for _, path := range filesToUpload {
+		wg.Add(1)
+		go func(p string) {
+			defer wg.Done()
+			sem <- struct{}{}        // acquire
+			defer func() { <-sem }() // release
+
+			if err := uploadFile(projectConfig, p); err != nil {
+				uploadMutex.Lock()
+				uploadErrors = append(uploadErrors, fmt.Sprintf("%s: %v", p, err))
+				uploadMutex.Unlock()
+				log.Printf("[%s] Failed to upload %s: %v", req.BaseRoot, p, err)
+			} else {
+				uploadMutex.Lock()
+				fileCount++
+				uploadMutex.Unlock()
+			}
+		}(path)
+	}
+
+	wg.Wait()
+
+	if len(uploadErrors) > 0 {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(UploadResponse{
+			Success: false,
+			Message: fmt.Sprintf("Folder upload completed with errors (%d/%d succeeded): %s", fileCount, len(filesToUpload), strings.Join(uploadErrors, "; ")),
 		})
 		return
 	}
@@ -503,25 +626,10 @@ func handleDownloadFolder(w http.ResponseWriter, r *http.Request) {
 }
 
 func downloadFile(config ProjectConfig, localPath string) error {
-	sshConfig := &ssh.ClientConfig{
-		User: config.SFTPUser,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(config.SFTPPassword),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", config.SFTPHost, config.SFTPPort), sshConfig)
+	client, err := connectionPool.getConnection(config)
 	if err != nil {
-		return fmt.Errorf("failed to dial: %w", err)
+		return err
 	}
-	defer conn.Close()
-
-	client, err := sftp.NewClient(conn)
-	if err != nil {
-		return fmt.Errorf("failed to create SFTP client: %w", err)
-	}
-	defer client.Close()
 
 	relativePath := strings.TrimPrefix(localPath, config.LocalBasePath)
 	relativePath = strings.TrimPrefix(relativePath, "/")
@@ -544,7 +652,9 @@ func downloadFile(config ProjectConfig, localPath string) error {
 	}
 	defer dstFile.Close()
 
-	if _, err := dstFile.ReadFrom(srcFile); err != nil {
+	// Use buffered copy for better performance
+	buf := make([]byte, 32*1024) // 32KB buffer
+	if _, err := io.CopyBuffer(dstFile, srcFile, buf); err != nil {
 		return fmt.Errorf("failed to download file: %w", err)
 	}
 
@@ -552,30 +662,17 @@ func downloadFile(config ProjectConfig, localPath string) error {
 }
 
 func downloadFolder(config ProjectConfig, localFolderPath string) error {
-	sshConfig := &ssh.ClientConfig{
-		User: config.SFTPUser,
-		Auth: []ssh.AuthMethod{
-			ssh.Password(config.SFTPPassword),
-		},
-		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
-	}
-
-	conn, err := ssh.Dial("tcp", fmt.Sprintf("%s:%s", config.SFTPHost, config.SFTPPort), sshConfig)
+	client, err := connectionPool.getConnection(config)
 	if err != nil {
-		return fmt.Errorf("failed to dial: %w", err)
+		return err
 	}
-	defer conn.Close()
-
-	client, err := sftp.NewClient(conn)
-	if err != nil {
-		return fmt.Errorf("failed to create SFTP client: %w", err)
-	}
-	defer client.Close()
 
 	relativePath := strings.TrimPrefix(localFolderPath, config.LocalBasePath)
 	relativePath = strings.TrimPrefix(relativePath, "/")
 	remoteFolderPath := filepath.Join(config.SFTPBasePath, relativePath)
 
+	// Collect all files first
+	var filesToDownload []string
 	walker := client.Walk(remoteFolderPath)
 	for walker.Step() {
 		if err := walker.Err(); err != nil {
@@ -593,11 +690,28 @@ func downloadFolder(config ProjectConfig, localFolderPath string) error {
 				log.Printf("Failed to create directory %s: %v", localPath, err)
 			}
 		} else {
-			if err := downloadFile(config, localPath); err != nil {
-				log.Printf("Failed to download %s: %v", localPath, err)
-			}
+			filesToDownload = append(filesToDownload, localPath)
 		}
 	}
 
+	// Download files in parallel with limited concurrency
+	const maxConcurrency = 10
+	sem := make(chan struct{}, maxConcurrency)
+	var wg sync.WaitGroup
+
+	for _, localPath := range filesToDownload {
+		wg.Add(1)
+		go func(lp string) {
+			defer wg.Done()
+			sem <- struct{}{}        // acquire
+			defer func() { <-sem }() // release
+
+			if err := downloadFile(config, lp); err != nil {
+				log.Printf("Failed to download %s: %v", lp, err)
+			}
+		}(localPath)
+	}
+
+	wg.Wait()
 	return nil
 }
