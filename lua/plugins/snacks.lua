@@ -84,25 +84,9 @@ return {
       {
         "<D-f>",
         function()
-          Snacks.picker.grep({
-            preview = false,
-            args = {
-              "--vimgrep",
-              "--smart-case",
-              "--hidden",
-              "--fixed-strings",
-              "--glob",
-              "!**/vendor/**",
-              "--glob",
-              "!vendor/**",
-              "--glob",
-              "!**node_modules/**",
-              "--glob",
-              "!/Users/ahmadhasanudin/projects/old_app/**",
-            },
-          })
+          Snacks.picker.resume({ source = "grep" })
         end,
-        desc = "Grep with exclusions",
+        desc = "Grep (resume if exists)",
       },
       {
         "<D-p>",

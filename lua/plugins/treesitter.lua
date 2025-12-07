@@ -32,4 +32,15 @@ return {
       return opts
     end,
   },
+  {
+    "EmranMR/tree-sitter-blade",
+    ft = "blade",
+    config = function()
+      vim.filetype.add({
+        pattern = {
+          [".*%.blade%.php"] = "blade",
+        },
+      })
+    end,
+  },
 }

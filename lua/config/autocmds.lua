@@ -148,3 +148,11 @@ vim.api.nvim_create_user_command("WorkspaceInfo", function()
   end
 end, { desc = "Show workspace information" })
 
+-- Set commentstring for blade files
+vim.api.nvim_create_autocmd("FileType", {
+  pattern = "blade",
+  callback = function()
+    vim.bo.commentstring = "{{-- %s --}}"
+  end,
+})
+
