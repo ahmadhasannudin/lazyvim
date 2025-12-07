@@ -84,7 +84,30 @@ return {
       {
         "<D-f>",
         function()
-          Snacks.picker.resume({ source = "grep" })
+          local resume_state = require("snacks.picker.resume").state["grep"]
+          if resume_state then
+            -- Resume with preview explicitly disabled
+            Snacks.picker.resume({ source = "grep" })
+          else
+            -- First time, open grep with preview disabled
+            Snacks.picker.grep({
+              preview = false,
+              args = {
+                "--vimgrep",
+                "--smart-case",
+                "--hidden",
+                "--fixed-strings",
+                "--glob",
+                "!**/vendor/**",
+                "--glob",
+                "!vendor/**",
+                "--glob",
+                "!**node_modules/**",
+                "--glob",
+                "!/Users/ahmadhasanudin/projects/old_app/**",
+              },
+            })
+          end
         end,
         desc = "Grep (resume if exists)",
       },
