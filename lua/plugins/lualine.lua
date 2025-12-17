@@ -4,23 +4,42 @@ return {
   opts = function()
     local function get_project_root()
       local file_path = vim.api.nvim_buf_get_name(0)
+      local relative_path = ""
       
       -- Try to get workspace name first
       local ok, workspaces = pcall(require, "workspaces")
       if ok then
         local workspace_name = workspaces.name()
         if workspace_name and workspace_name ~= "" then
-          return " " .. workspace_name .. "/" .. vim.fn.pathshorten(vim.fn.fnamemodify(file_path, ":."))
+          relative_path = vim.fn.fnamemodify(file_path, ":.")
+          local dir = vim.fn.fnamemodify(relative_path, ":h")
+          local file = vim.fn.fnamemodify(relative_path, ":t")
+          if dir == "." then
+            return " " .. workspace_name .. "/%#LualineFilename#" .. file .. "%*"
+          else
+            return " " .. workspace_name .. "/" .. dir .. "/%#LualineFilename#" .. file .. "%*"
+          end
         end
       end
       
       -- Fallback to project root detection
       local project_root = vim.fs.root(0, { ".git", "package.json", ".project-root" })
       if project_root then
-        return " " .. vim.fn.fnamemodify(project_root, ":t") .. "/" .. vim.fn.pathshorten(vim.fn.fnamemodify(file_path, ":."))
+        relative_path = vim.fn.fnamemodify(file_path, ":.")
+        local dir = vim.fn.fnamemodify(relative_path, ":h")
+        local file = vim.fn.fnamemodify(relative_path, ":t")
+        local root_name = vim.fn.fnamemodify(project_root, ":t")
+        if dir == "." then
+          return " " .. root_name .. "/%#LualineFilename#" .. file .. "%*"
+        else
+          return " " .. root_name .. "/" .. dir .. "/%#LualineFilename#" .. file .. "%*"
+        end
       end
       return ""
     end
+    
+    -- Set up filename highlight
+    vim.api.nvim_set_hl(0, "LualineFilename", { fg = "#E5C07B", bold = true })
 
     local function get_time()
       return os.date("%H:%M")
