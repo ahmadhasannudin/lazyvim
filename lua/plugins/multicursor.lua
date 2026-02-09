@@ -11,7 +11,9 @@ return {
         ["Add Cursor Down"] = "<D-Down>",
         ["Add Cursor Up"] = "<D-Up>",
         ["Visual Cursors"] = "<D-S-i>", -- Cmd + Shift + I - Cursors at start of each line
-        ["Toggle Mappings"] = "<Tab>", -- Tab to toggle extend mode (enables visual motions on all cursors)
+        ["Visual Add"] = "v", -- Press v to start visual mode on all cursors
+        ["Visual Find"] = "v", -- Visual mode works across all cursors
+        ["Switch Mode"] = "v", -- Toggle extend/cursor mode with v
       }
 
       -- Optional tweaks

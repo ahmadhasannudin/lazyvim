@@ -1,0 +1,15 @@
+function getUserName() {
+  return user.name;
+}
+
+function getUserAge() {
+  return user.age;
+}
+
+function getUserEmail() {
+  return user.email;
+}
+
+function getUserPhone() {
+  return user.phone;
+}
