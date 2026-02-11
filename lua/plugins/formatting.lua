@@ -8,10 +8,14 @@ return {
         formatters_by_ft = {
           lua = { "stylua" },
           javascript = { "prettier" },
+          javascriptreact = { "prettier" },
           typescript = { "prettier" },
+          typescriptreact = { "prettier" },
+          svelte = { "prettier" },
           json = { "prettier" },
           html = { "prettier" },
           css = { "prettier" },
+          scss = { "prettier" },
           -- PHP will use LSP formatting (intelephense)
         },
         format_on_save = settings.auto_format_on_save and function(bufnr)

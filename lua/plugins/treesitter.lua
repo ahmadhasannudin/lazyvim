@@ -18,7 +18,12 @@ return {
         "gitignore",
         "json",
         "javascript",
+        "typescript",
+        "tsx",
+        "jsx",
         "css",
+        "scss",
+        "svelte",
         "sql",
       })
 

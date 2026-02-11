@@ -3,6 +3,15 @@ return {
     "neovim/nvim-lspconfig",
     opts = {
       servers = {
+        -- TypeScript/JavaScript
+        ts_ls = {},
+        -- Svelte
+        svelte = {},
+        -- ESLint
+        eslint = {},
+        -- Tailwind CSS
+        tailwindcss = {},
+        -- PHP
         intelephense = {
           on_attach = function(client, bufnr)
             local settings = vim.g.SETTINGS or { auto_format_on_save = false }
@@ -104,6 +113,11 @@ return {
     opts = {
       ensure_installed = {
         "intelephense",
+        "typescript-language-server",
+        "svelte-language-server",
+        "eslint-lsp",
+        "tailwindcss-language-server",
+        "prettier",
       },
     },
   },
