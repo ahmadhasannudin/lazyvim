@@ -105,3 +105,7 @@ vim.api.nvim_create_autocmd("BufWritePost", {
 })
 
 vim.notify("✓ SFTP upload on save enabled (auto-detect projects)")
+
+-- Dynamic window title based on workspace
+vim.opt.title = true
+vim.opt.titlestring = "%{v:lua.require('config.title').get_title()}"

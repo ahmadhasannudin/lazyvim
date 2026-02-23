@@ -70,7 +70,7 @@ end, { noremap = true, silent = true, desc = "Toggle line comment" })
 
 -- Navigate to symbols (like Cmd+Shift+O in VSCode)
 vim.keymap.set("n", "<D-S-o>", function()
-  require("snacks.picker").lsp_symbols()
+  require("telescope.builtin").lsp_document_symbols()
 end, { desc = "Go to Symbol" })
 
 -- PHP-specific keybinding: - to add semicolon at end of line
