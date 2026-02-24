@@ -42,14 +42,11 @@ return {
         },
       },
       picker = {
-        preview = {
-          enabled = false,
-        },
         sources = {
           files = {
             hidden = true,
             ignored = true,
-            preview = false,
+            layout = { preview = false },
           },
           explorer = {
             -- hidden = true,
@@ -74,9 +71,7 @@ return {
           search = {
             fixed_strings = false,
           },
-          preview = {
-            enabled = false,
-          },
+          layout = { preview = false },
         },
       },
     },
