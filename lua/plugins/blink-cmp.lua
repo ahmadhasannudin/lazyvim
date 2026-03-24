@@ -25,6 +25,24 @@ return {
         vim.snippet.expand(cleaned)
       end
       
+      -- Sundb SQL completion source
+      opts.sources = opts.sources or {}
+      opts.sources.providers = opts.sources.providers or {}
+      opts.sources.providers.sundb = {
+        name = "Sundb",
+        module = "sundb.completion",
+        score_offset = 10,
+      }
+      opts.sources.default = opts.sources.default or { "lsp", "path", "snippets", "buffer" }
+      -- Add sundb source to defaults so it's always available (it self-disables outside sundb)
+      local has_sundb = false
+      for _, s in ipairs(opts.sources.default) do
+        if s == "sundb" then has_sundb = true; break end
+      end
+      if not has_sundb then
+        table.insert(opts.sources.default, "sundb")
+      end
+
       return opts
     end,
   },
