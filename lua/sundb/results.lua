@@ -98,37 +98,79 @@ local function reposition_floats()
   local editor_win = state.state.editor.win
   if not state.valid_win(editor_win) then return end
   local win_height = vim.api.nvim_win_get_height(editor_win)
+  local editor_pos = vim.api.nvim_win_get_position(editor_win)
+
+  local function screen_to_win(screen_row)
+    if screen_row == 0 then return nil end
+    local r = screen_row - editor_pos[1] - 1
+    if r < 0 or r >= win_height then return nil end
+    return r
+  end
 
   for _, f in ipairs(floats) do
-    local win_row = get_win_row(editor_win, f.stmt_line)
-    local on_screen = win_row and win_row >= 0 and win_row < win_height
+    local header_h = f.header_h or 0
+    local data_h   = f.data_h   or 1
 
-    -- Reposition header float (if present)
+    -- Where is the SQL line on screen?
+    local editor_buf  = state.state.editor.buf
+    local line_count  = state.valid_buf(editor_buf) and vim.api.nvim_buf_line_count(editor_buf) or 0
+    local sp          = vim.fn.screenpos(editor_win, f.stmt_line, 1)
+    local sp_next     = (f.stmt_line < line_count)
+                        and vim.fn.screenpos(editor_win, f.stmt_line + 1, 1)
+                        or  { row = 0 }
+    local win_row      = screen_to_win(sp.row)
+    local next_win_row = screen_to_win(sp_next.row)
+
+    local show     = false
+    local h_row, d_row
+    local h_height = header_h
+    local d_height = data_h
+
+    if win_row then
+      -- SQL line is fully visible: normal positioning
+      show  = true
+      h_row = win_row + 1
+      d_row = win_row + 1 + header_h
+    elseif next_win_row and next_win_row > 0 then
+      -- SQL line scrolled off the top, but the line after the virt_lines is
+      -- still visible at next_win_row → we are inside the reserved virt_lines.
+      -- Pin the float to row 0 and clip its height to the available space.
+      local available = next_win_row   -- rows 0 .. next_win_row-1
+      h_height = math.min(header_h, available)
+      d_height = math.min(data_h,   available - h_height)
+      if h_height + d_height > 0 then
+        show  = true
+        h_row = 0
+        d_row = h_height
+      end
+    end
+
+    -- Apply config to header float (may be nil for simple/error floats)
     if f.header_win and vim.api.nvim_win_is_valid(f.header_win) then
-      if on_screen then
+      if show and h_height > 0 then
         pcall(vim.api.nvim_win_set_config, f.header_win, {
-          hide = false,
+          hide     = false,
           relative = "win",
-          win = editor_win,
-          row = win_row + 1,
-          col = 1,
+          win      = editor_win,
+          row      = h_row,
+          col      = 1,
+          height   = h_height,
         })
       else
         pcall(vim.api.nvim_win_set_config, f.header_win, { hide = true })
       end
     end
 
-    -- Reposition data float (always present)
+    -- Apply config to data / main float
     if f.win and vim.api.nvim_win_is_valid(f.win) then
-      -- data float sits immediately below header float
-      local data_row = win_row and (win_row + 1 + (f.header_h or 0)) or 0
-      if on_screen then
+      if show and d_height > 0 then
         pcall(vim.api.nvim_win_set_config, f.win, {
-          hide = false,
+          hide     = false,
           relative = "win",
-          win = editor_win,
-          row = data_row,
-          col = 1,
+          win      = editor_win,
+          row      = d_row,
+          col      = 1,
+          height   = d_height,
         })
       else
         pcall(vim.api.nvim_win_set_config, f.win, { hide = true })
@@ -498,6 +540,7 @@ function M.show_inline(result, env, db, stmt_end_line)
     header_win = header_win,
     header_buf = header_buf,
     header_h   = HEADER_H,
+    data_h     = data_win_h,
     extmark_id = extmark_id,
     stmt_line  = stmt_end_line,
     float_group = float_group,
@@ -570,6 +613,7 @@ function M._open_simple(editor_buf, editor_win, stmt_end_line, content, title, i
   local float_entry = {
     win        = float_win,
     buf        = result_buf,
+    data_h     = height,
     extmark_id = extmark_id,
     stmt_line  = stmt_end_line,
     float_group = float_group,
