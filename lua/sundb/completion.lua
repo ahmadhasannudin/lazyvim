@@ -1,23 +1,21 @@
 -- Sundb blink-cmp completion source
 
 local sql_keywords = {
-  "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "LIKE", "ILIKE",
+  "SELECT", "FROM", "WHERE", "AND", "OR", "NOT", "IN", "LIKE",
   "ORDER BY", "GROUP BY", "HAVING", "LIMIT", "OFFSET",
   "INSERT INTO", "VALUES", "UPDATE", "SET", "DELETE FROM",
-  "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "OUTER JOIN", "CROSS JOIN", "ON",
-  "CREATE TABLE", "ALTER TABLE", "DROP TABLE", "CREATE INDEX", "DROP INDEX", "CREATE VIEW",
+  "JOIN", "LEFT JOIN", "RIGHT JOIN", "INNER JOIN", "CROSS JOIN", "ON",
+  "CREATE TABLE", "ALTER TABLE", "DROP TABLE", "CREATE INDEX", "CREATE VIEW",
   "AS", "DISTINCT", "COUNT", "SUM", "AVG", "MAX", "MIN",
-  "ASC", "DESC", "NULL", "IS NULL", "IS NOT NULL", "IS", "BETWEEN", "EXISTS",
+  "ASC", "DESC", "NULL", "IS NULL", "IS NOT NULL", "BETWEEN", "EXISTS",
   "CASE", "WHEN", "THEN", "ELSE", "END",
-  "UNION", "UNION ALL", "EXCEPT", "INTERSECT",
-  "PRIMARY KEY", "FOREIGN KEY", "REFERENCES", "UNIQUE", "INDEX",
-  "SHOW DATABASES", "SHOW TABLES", "DESCRIBE", "EXPLAIN",
+  "UNION", "UNION ALL", "SHOW DATABASES", "SHOW TABLES", "DESCRIBE", "EXPLAIN",
   "CONCAT", "SUBSTRING", "REPLACE", "TRIM", "LOWER", "UPPER", "LENGTH",
   "NOW", "DATE", "COALESCE", "IFNULL", "NULLIF", "CAST", "CONVERT",
   "ROUND", "FLOOR", "CEIL", "ABS", "MOD",
   "TRUE", "FALSE", "DEFAULT", "AUTO_INCREMENT",
   "VARCHAR", "INT", "INTEGER", "BIGINT", "BOOLEAN", "TEXT", "LONGTEXT",
-  "DATETIME", "TIMESTAMP", "DATE", "FLOAT", "DECIMAL",
+  "DATETIME", "TIMESTAMP", "FLOAT", "DECIMAL",
 }
 
 local KIND = vim.lsp.protocol.CompletionItemKind
@@ -28,87 +26,89 @@ function source.new()
   return setmetatable({}, { __index = source })
 end
 
-function source:get_completions(ctx, callback)
+function source:enabled()
   local ok, state = pcall(require, "sundb.state")
-  if not ok then
-    callback({ is_incomplete_forward = false, is_incomplete_backward = false, items = {} })
-    return
-  end
-
-  -- Only active in sundb editor buffer
+  if not ok then return false end
   local cur_buf = vim.api.nvim_get_current_buf()
-  if state.state.editor.buf ~= cur_buf then
-    callback({ is_incomplete_forward = false, is_incomplete_backward = false, items = {} })
-    return
+  -- Active for any sundb tab buffer
+  for _, tab in ipairs(state.state.tabs or {}) do
+    if tab.buf == cur_buf then return true end
+  end
+  return false
+end
+
+function source:get_trigger_characters()
+  return { ".", " ", "(", "`" }
+end
+
+function source:get_completions(ctx, callback)
+  local empty = { is_incomplete_forward = false, is_incomplete_backward = false, items = {} }
+  if not self:enabled() then callback(empty); return end
+
+  local ok, state = pcall(require, "sundb.state")
+  if not ok then callback(empty); return end
+
+  local env_name = state.state.active_env
+  local db_name  = state.state.active_db
+  local key      = (env_name or "") .. "/" .. (db_name or "")
+  local cached   = env_name and db_name and state.state.schema[key]
+
+  -- If not cached yet, trigger a background fetch; return keywords now
+  if env_name and db_name and (not cached or not cached.fetched) then
+    local conn = require("sundb.connection")
+    conn.fetch_schema(env_name, db_name, function()
+      -- Schema ready – blink will call get_completions again via trigger
+    end)
   end
 
-  local items = {}
-  local base = ctx.word or ""
-  local base_lower = base:lower()
-  local base_upper = base:upper()
+  local items  = {}
+  local word   = ctx.word or ""
+  local wlower = word:lower()
+  local wupper = word:upper()
 
   -- SQL keywords
   for _, kw in ipairs(sql_keywords) do
-    local kw_upper = kw:upper()
-    if base == "" or kw_upper:sub(1, #base_upper) == base_upper then
+    if word == "" or kw:upper():sub(1, #wupper) == wupper then
       table.insert(items, {
-        label = kw:lower(),
+        label       = kw:lower(),
         labelDetails = { description = "keyword" },
-        kind = KIND.Keyword,
-        insertText = kw:lower(),
-        sortText = "3_" .. kw,
+        kind        = KIND.Keyword,
+        insertText  = kw:lower(),
+        sortText    = "3_" .. kw,
       })
     end
   end
 
-  -- Table and column names from sidebar tree
-  local tree = state.state.sidebar.tree or {}
-  for _, env_node in ipairs(tree) do
-    for _, db_node in ipairs(env_node.children or {}) do
-      for _, tbl_node in ipairs(db_node.children or {}) do
-        -- Table names
-        if base == "" or tbl_node.name:lower():sub(1, #base_lower) == base_lower then
-          table.insert(items, {
-            label = tbl_node.name,
-            labelDetails = { description = db_node.name },
-            kind = KIND.Module,
-            insertText = tbl_node.name,
-            sortText = "1_" .. tbl_node.name,
-          })
-        end
-        -- Column names
-        for _, col_node in ipairs(tbl_node.children or {}) do
-          if base == "" or col_node.name:lower():sub(1, #base_lower) == base_lower then
-            local col_type = (col_node.meta and col_node.meta.col_type) or ""
-            table.insert(items, {
-              label = col_node.name,
-              labelDetails = { description = tbl_node.name .. "." .. col_type },
-              kind = KIND.Field,
-              insertText = col_node.name,
-              sortText = "2_" .. col_node.name,
-            })
-          end
-        end
+  -- Tables + columns from schema cache (fast path)
+  local tables = cached and cached.tables or {}
+  for _, tbl in ipairs(tables) do
+    if word == "" or tbl.name:lower():sub(1, #wlower) == wlower then
+      table.insert(items, {
+        label        = tbl.name,
+        labelDetails = { description = db_name },
+        kind         = KIND.Module,
+        insertText   = tbl.name,
+        sortText     = "1_" .. tbl.name,
+      })
+    end
+    for _, col in ipairs(tbl.columns or {}) do
+      if word == "" or col.name:lower():sub(1, #wlower) == wlower then
+        table.insert(items, {
+          label        = col.name,
+          labelDetails = { description = tbl.name .. "  " .. (col.type or "") },
+          kind         = KIND.Field,
+          insertText   = col.name,
+          sortText     = "2_" .. col.name,
+        })
       end
     end
   end
 
   callback({
-    is_incomplete_forward = false,
+    is_incomplete_forward  = false,
     is_incomplete_backward = false,
     items = items,
   })
-end
-
-function source:get_trigger_characters()
-  return { ".", " ", "(" }
-end
-
-function source:enabled()
-  local ok, state = pcall(require, "sundb.state")
-  if not ok then return false end
-  local cur_buf = vim.api.nvim_get_current_buf()
-  return state.state.editor.buf == cur_buf
 end
 
 return source

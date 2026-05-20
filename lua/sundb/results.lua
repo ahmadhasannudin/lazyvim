@@ -114,6 +114,12 @@ local function reposition_floats()
     -- Where is the SQL line on screen?
     local editor_buf  = state.state.editor.buf
     local line_count  = state.valid_buf(editor_buf) and vim.api.nvim_buf_line_count(editor_buf) or 0
+    -- If the stmt line was deleted, close and remove the float
+    if f.stmt_line > line_count then
+      close_float_entry(f, editor_buf)
+      f._dead = true
+      goto continue
+    end
     local sp          = vim.fn.screenpos(editor_win, f.stmt_line, 1)
     local sp_next     = (f.stmt_line < line_count)
                         and vim.fn.screenpos(editor_win, f.stmt_line + 1, 1)
@@ -129,8 +135,8 @@ local function reposition_floats()
     if win_row then
       -- SQL line is fully visible: normal positioning
       show  = true
-      h_row = win_row + 1
-      d_row = win_row + 1 + header_h
+      h_row = win_row
+      d_row = win_row + header_h
     elseif next_win_row and next_win_row > 0 then
       -- SQL line scrolled off the top, but the line after the virt_lines is
       -- still visible at next_win_row → we are inside the reserved virt_lines.
@@ -176,6 +182,11 @@ local function reposition_floats()
         pcall(vim.api.nvim_win_set_config, f.win, { hide = true })
       end
     end
+    ::continue::
+  end
+  -- Sweep dead entries (deleted lines)
+  for i = #floats, 1, -1 do
+    if floats[i]._dead then table.remove(floats, i) end
   end
 end
 

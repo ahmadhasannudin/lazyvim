@@ -247,32 +247,68 @@ function M.execute_at_cursor()
   end)
 end
 
+-- setup_keymaps: called by both setup_buf (legacy) and tabs.new()
+function M.setup_keymaps(buf)
+  local o = function(desc) return { buffer = buf, desc = desc } end
+  vim.keymap.set("n", "<CR>", function()
+    results.focus_nearest(vim.api.nvim_win_get_cursor(0)[1])
+  end, o("Focus result float"))
+  vim.keymap.set("n", "<D-CR>",  M.execute_at_cursor,                          o("Execute query"))
+  vim.keymap.set("i", "<D-CR>",  function() vim.cmd("stopinsert"); M.execute_at_cursor() end, o("Execute query"))
+  vim.keymap.set("n", "<C-CR>",  M.execute_at_cursor,                          o("Execute query"))
+  vim.keymap.set("i", "<C-CR>",  function() vim.cmd("stopinsert"); M.execute_at_cursor() end, o("Execute query"))
+end
+
+-- Start sqls LSP for a sundb buffer, configured with the active connection.
+function M.start_lsp(buf)
+  if not vim.api.nvim_buf_is_valid(buf) then return end
+
+  -- sqls must be installed (mason: sqls)
+  local sqls_bin = vim.fn.exepath("sqls")
+  if sqls_bin == "" then return end
+
+  local env_name = state.state.active_env
+  local db_name  = state.state.active_db
+  if not env_name then return end
+
+  local conn = require("sundb.connection")
+  local cfg  = conn.get_env_config(env_name)
+  if not cfg then return end
+
+  local dsn = string.format("%s:%s@tcp(%s:%s)/%s",
+    cfg.user     or "root",
+    cfg.password or "",
+    cfg.host     or "127.0.0.1",
+    tostring(cfg.port or 3306),
+    db_name or cfg.default_database or ""
+  )
+
+  vim.lsp.start({
+    name     = "sqls",
+    cmd      = { sqls_bin },
+    root_dir = vim.fn.getcwd(),
+    settings = {
+      sqls = {
+        connections = { { driver = "mysql", dataSourceName = dsn } },
+      },
+    },
+    on_attach = function(client, _)
+      -- Disable semantic tokens: they conflict with treesitter highlighter
+      client.server_capabilities.semanticTokensProvider          = nil
+      client.server_capabilities.documentFormattingProvider      = false
+      client.server_capabilities.documentRangeFormattingProvider = false
+    end,
+  }, { bufnr = buf, reuse_client = function(c) return c.name == "sqls" end })
+end
+
 function M.setup_buf(buf)
+  -- Called for the initial scratch buffer; real tabs are handled via tabs.new()
   vim.api.nvim_buf_set_option(buf, "buftype", "nofile")
   vim.api.nvim_buf_set_option(buf, "buflisted", false)
   vim.api.nvim_buf_set_option(buf, "swapfile", false)
   vim.api.nvim_buf_set_option(buf, "filetype", "sql")
   vim.api.nvim_buf_set_name(buf, "sundb://editor")
-
-  -- Keymaps
-  vim.keymap.set("n", "<CR>", function()
-    local cursor = vim.api.nvim_win_get_cursor(0)
-    results.focus_nearest(cursor[1])
-  end, { buffer = buf, desc = "Focus result float" })
-  vim.keymap.set("n", "<D-CR>", function()
-    M.execute_at_cursor()
-  end, { buffer = buf, desc = "Execute query" })
-  vim.keymap.set("i", "<D-CR>", function()
-    vim.cmd("stopinsert")
-    M.execute_at_cursor()
-  end, { buffer = buf, desc = "Execute query" })
-  vim.keymap.set("n", "<C-CR>", function()
-    M.execute_at_cursor()
-  end, { buffer = buf, desc = "Execute query" })
-  vim.keymap.set("i", "<C-CR>", function()
-    vim.cmd("stopinsert")
-    M.execute_at_cursor()
-  end, { buffer = buf, desc = "Execute query" })
+  M.setup_keymaps(buf)
 end
 
 return M

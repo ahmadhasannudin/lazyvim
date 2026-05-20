@@ -14,6 +14,14 @@ M.state = {
   auto_commit = false,
   auto_limit = true,
   config = nil,
+  -- Tabs
+  tabs = {},
+  active_tab_idx = 0,
+  -- Panel visibility
+  sidebar_visible = true,
+  log_visible = true,
+  -- Schema cache: key = "env/db", value = { tables = { {name, columns={name,type}} }, fetched=bool }
+  schema = {},
 }
 
 function M.valid_win(win)
@@ -26,9 +34,7 @@ end
 
 function M.is_valid()
   return M.state.is_open
-    and M.valid_win(M.state.sidebar.win)
     and M.valid_win(M.state.editor.win)
-    and M.valid_win(M.state.log.win)
 end
 
 function M.reset()
@@ -40,6 +46,11 @@ function M.reset()
   M.state.log = { win = nil, buf = nil, entries = M.state.log.entries }
   M.state.active_env = nil
   M.state.active_db = nil
+  M.state.tabs = {}
+  M.state.active_tab_idx = 0
+  M.state.sidebar_visible = true
+  M.state.log_visible = true
+  M.state.schema = {}
 end
 
 return M

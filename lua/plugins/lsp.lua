@@ -118,6 +118,7 @@ return {
         "eslint-lsp",
         "tailwindcss-language-server",
         "prettier",
+        "sqls",
       },
     },
   },

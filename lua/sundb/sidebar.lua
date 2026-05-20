@@ -172,6 +172,8 @@ function M.toggle_node()
   elseif node.type == "database" then
     state.state.active_db = node.name
     state.state.active_env = M.find_parent_env(node)
+    -- Prefetch schema cache for completions
+    require("sundb.connection").fetch_schema(state.state.active_env, node.name)
     if #node.children == 0 then
       M.fetch_tables(node)
       return
@@ -344,18 +346,22 @@ function M.setup_buf(buf)
   vim.api.nvim_buf_set_name(buf, "sundb://sidebar")
 
   -- Keymaps
-  vim.keymap.set("n", "<CR>", function()
-    M.toggle_node()
-  end, { buffer = buf, desc = "Expand/collapse" })
-  vim.keymap.set("n", "r", function()
-    M.refresh()
-  end, { buffer = buf, desc = "Refresh tree" })
-  vim.keymap.set("n", "e", function()
-    M.send_select_to_editor()
-  end, { buffer = buf, desc = "Send SELECT to editor" })
-  vim.keymap.set("n", "d", function()
-    M.describe_table()
-  end, { buffer = buf, desc = "Describe table" })
+  vim.keymap.set("n", "<CR>",           M.toggle_node,           { buffer = buf, desc = "Expand/collapse" })
+  vim.keymap.set("n", "<2-LeftMouse>",  M.toggle_node,           { buffer = buf, desc = "Expand/collapse (click)" })
+  vim.keymap.set("n", "r",              M.refresh,               { buffer = buf, desc = "Refresh tree" })
+  vim.keymap.set("n", "e",              M.send_select_to_editor, { buffer = buf, desc = "Send SELECT to editor" })
+  vim.keymap.set("n", "d",             M.describe_table,        { buffer = buf, desc = "Describe table" })
+  -- Return focus to editor
+  vim.keymap.set("n", "q", function()
+    if state.valid_win(state.state.editor.win) then
+      vim.api.nvim_set_current_win(state.state.editor.win)
+    end
+  end, { buffer = buf, desc = "Focus editor" })
+  vim.keymap.set("n", "<Esc>", function()
+    if state.valid_win(state.state.editor.win) then
+      vim.api.nvim_set_current_win(state.state.editor.win)
+    end
+  end, { buffer = buf, desc = "Focus editor" })
 end
 
 return M

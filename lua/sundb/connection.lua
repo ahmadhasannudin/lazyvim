@@ -5,14 +5,24 @@ local state = require("sundb.state")
 local M = {}
 
 function M.load_config()
-  local config_path = vim.fn.getcwd() .. "/.sundb.json"
-  if vim.fn.filereadable(config_path) ~= 1 then
-    return nil
+  -- Prefer nvim-config-level connections file, fall back to project-level
+  local candidates = {
+    vim.fn.stdpath("config") .. "/sundb-connections.json",
+    vim.fn.getcwd() .. "/.sundb.json",
+  }
+  local config_path
+  for _, p in ipairs(candidates) do
+    if vim.fn.filereadable(p) == 1 then
+      config_path = p
+      break
+    end
   end
+  if not config_path then return nil end
+
   local content = table.concat(vim.fn.readfile(config_path), "\n")
   local ok, config = pcall(vim.fn.json_decode, content)
   if not ok or not config then
-    vim.notify("Sundb: invalid .sundb.json", vim.log.levels.ERROR)
+    vim.notify("Sundb: invalid connections file: " .. config_path, vim.log.levels.ERROR)
     return nil
   end
   state.state.config = config
@@ -205,6 +215,41 @@ function M.execute(sql, callback, opts)
       end)
     end,
   })
+end
+
+-- Fetch all tables + columns for env/db in one query, store in state.schema cache.
+function M.fetch_schema(env_name, db_name, callback)
+  if not env_name or not db_name then return end
+  local key = env_name .. "/" .. db_name
+  if state.state.schema[key] and state.state.schema[key].fetched then
+    if callback then callback(state.state.schema[key].tables) end
+    return
+  end
+
+  local sql = string.format(
+    "SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE FROM INFORMATION_SCHEMA.COLUMNS "
+    .. "WHERE TABLE_SCHEMA = '%s' ORDER BY TABLE_NAME, ORDINAL_POSITION",
+    db_name:gsub("'", "\\'")
+  )
+  M.execute(sql, function(result, err)
+    if err or not result then return end
+    local tables_map = {}
+    local tables_order = {}
+    for _, row in ipairs(result.rows) do
+      local tbl_name, col_name, col_type = row[1], row[2], row[3]
+      if not tables_map[tbl_name] then
+        tables_map[tbl_name] = { name = tbl_name, columns = {} }
+        table.insert(tables_order, tbl_name)
+      end
+      table.insert(tables_map[tbl_name].columns, { name = col_name, type = col_type })
+    end
+    local tables = {}
+    for _, name in ipairs(tables_order) do
+      table.insert(tables, tables_map[name])
+    end
+    state.state.schema[key] = { tables = tables, fetched = true }
+    if callback then callback(tables) end
+  end, { env = env_name, database = db_name })
 end
 
 return M
