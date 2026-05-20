@@ -32,6 +32,39 @@ return {
           vim.cmd("normal! `<") -- move to start of selection
         end,
       })
+
+      -- VSCode-style distribute paste while VM is active. Bind paste keys
+      -- only inside VM-buffer-local maps so behaviour outside VM is untouched.
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "visual_multi_mappings",
+        callback = function()
+          local smart = require("config.vm_smart_paste")
+          local buf = vim.api.nvim_get_current_buf()
+          local map_opts = { buffer = buf, silent = true, nowait = true }
+
+          vim.keymap.set("n", "p", function()
+            smart.paste({ before = false })
+          end, vim.tbl_extend("force", map_opts, { desc = "VM smart paste (after)" }))
+
+          vim.keymap.set("n", "P", function()
+            smart.paste({ before = true })
+          end, vim.tbl_extend("force", map_opts, { desc = "VM smart paste (before)" }))
+
+          vim.keymap.set("n", "<D-v>", function()
+            smart.paste({ before = false, register = "+" })
+          end, vim.tbl_extend("force", map_opts, { desc = "VM smart paste from system clipboard" }))
+        end,
+      })
+
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "visual_multi_exit",
+        callback = function()
+          local buf = vim.api.nvim_get_current_buf()
+          pcall(vim.keymap.del, "n", "p", { buffer = buf })
+          pcall(vim.keymap.del, "n", "P", { buffer = buf })
+          pcall(vim.keymap.del, "n", "<D-v>", { buffer = buf })
+        end,
+      })
     end,
     keys = {
       {
