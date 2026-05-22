@@ -56,6 +56,22 @@ return {
                 position = "right",
               },
             },
+            -- Comfy line numbers in the file explorer. Snacks' picker list
+            -- uses the "minimal" window style which forces number=false,
+            -- relativenumber=false and statuscolumn="". These overrides
+            -- merge into that resolution (tbl_deep_extend("force", ...))
+            -- so the explorer opens with comfy labels already in place
+            -- rather than waiting for an autocmd to race the wipe.
+            win = {
+              list = {
+                wo = {
+                  number = true,
+                  relativenumber = true,
+                  numberwidth = 4,
+                  statuscolumn = '%=%s%=%{v:virtnum > 0 ? "" : v:lua.get_label(v:lnum, v:relnum)} ',
+                },
+              },
+            },
           },
           projects = {
             enabled = false,
