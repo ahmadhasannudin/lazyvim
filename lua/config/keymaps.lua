@@ -217,6 +217,9 @@ vim.keymap.set("n", "<leader>n", function()
   require("noice").cmd("telescope")
 end, { desc = "Noice Picker (Telescope)" })
 
+-- New empty buffer
+vim.keymap.set("n", "<leader>bn", "<cmd>enew<cr>", { desc = "New empty buffer" })
+
 -- Delete all buffers except current
 vim.keymap.set("n", "<leader>bD", function()
   local current_buf = vim.api.nvim_get_current_buf()

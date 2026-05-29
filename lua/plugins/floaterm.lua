@@ -87,6 +87,45 @@ return {
             end, 100)
           end
         end, { buffer = buf, desc = "Delete terminal" })
+
+        -- Delete ALL terminals with tD
+        vim.keymap.set("n", "tD", function()
+          local state = require("floaterm.state")
+          if not state.terminals or #state.terminals == 0 then
+            vim.notify("No terminals to delete", vim.log.levels.INFO)
+            return
+          end
+          local total = #state.terminals
+
+          vim.cmd("FloatermToggle")
+
+          vim.defer_fn(function()
+            vim.ui.select({ "Yes", "No" }, {
+              prompt = "Delete ALL " .. total .. " terminal(s)?",
+            }, function(choice)
+              if choice == "Yes" then
+                for _, term in ipairs(state.terminals) do
+                  if vim.api.nvim_buf_is_valid(term.buf) then
+                    vim.api.nvim_buf_delete(term.buf, { force = true })
+                  end
+                end
+                state.volt_set = false
+                state.terminals = nil
+                state.buf = nil
+                state.sidebuf = nil
+                state.barbuf = nil
+                state.win = nil
+                state.barwin = nil
+                state.sidewin = nil
+                vim.notify("✓ Deleted " .. total .. " terminal(s)", vim.log.levels.INFO)
+              else
+                vim.defer_fn(function()
+                  vim.cmd("FloatermToggle")
+                end, 50)
+              end
+            end)
+          end, 100)
+        end, { buffer = buf, desc = "Delete all terminals" })
       end,
       term = function(buf)
         -- Exit terminal mode with jk
@@ -200,7 +239,46 @@ return {
             end, 100)
           end
         end, { buffer = buf, desc = "Delete current terminal", noremap = true })
-        
+
+        -- Delete ALL terminals with tD
+        vim.keymap.set("n", "tD", function()
+          local state = require("floaterm.state")
+          if not state.terminals or #state.terminals == 0 then
+            vim.notify("No terminals to delete", vim.log.levels.INFO)
+            return
+          end
+          local total = #state.terminals
+
+          vim.cmd("FloatermToggle")
+
+          vim.defer_fn(function()
+            vim.ui.select({ "Yes", "No" }, {
+              prompt = "Delete ALL " .. total .. " terminal(s)?",
+            }, function(choice)
+              if choice == "Yes" then
+                for _, term in ipairs(state.terminals) do
+                  if vim.api.nvim_buf_is_valid(term.buf) then
+                    vim.api.nvim_buf_delete(term.buf, { force = true })
+                  end
+                end
+                state.volt_set = false
+                state.terminals = nil
+                state.buf = nil
+                state.sidebuf = nil
+                state.barbuf = nil
+                state.win = nil
+                state.barwin = nil
+                state.sidewin = nil
+                vim.notify("✓ Deleted " .. total .. " terminal(s)", vim.log.levels.INFO)
+              else
+                vim.defer_fn(function()
+                  vim.cmd("FloatermToggle")
+                end, 50)
+              end
+            end)
+          end, 100)
+        end, { buffer = buf, desc = "Delete all terminals", noremap = true })
+
         -- Terminal control mappings (pass through to shell)
         vim.keymap.set("t", "<M-BS>", "<M-BS>", { buffer = buf })
         vim.keymap.set("t", "<C-l>", "<C-l>", { buffer = buf })
