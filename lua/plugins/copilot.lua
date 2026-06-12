@@ -35,13 +35,19 @@ return {
             end
           end
 
-          -- Priority 2: Check if Copilot has a suggestion (only if no snippet menu)
+          -- Priority 2: Jump to next snippet placeholder if a snippet is active
+          if vim.snippet and vim.snippet.active({ direction = 1 }) then
+            vim.snippet.jump(1)
+            return
+          end
+
+          -- Priority 3: Check if Copilot has a suggestion (only if no snippet menu)
           if vim.fn["copilot#GetDisplayedSuggestion"]().text ~= "" then
             vim.api.nvim_feedkeys(vim.fn["copilot#Accept"](""), "n", true)
             return
           end
 
-          -- Priority 3: Jump to closing bracket if cursor is before one
+          -- Priority 4: Jump to closing bracket if cursor is before one
           local line = vim.api.nvim_get_current_line()
           local col = vim.api.nvim_win_get_cursor(0)[2]
           local char_after = line:sub(col + 1, col + 1)
@@ -50,7 +56,7 @@ return {
             return
           end
 
-          -- Priority 4: Fallback to regular Tab
+          -- Priority 5: Fallback to regular Tab
           vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("<Tab>", true, false, true), "n", false)
         end, { silent = true })
 
