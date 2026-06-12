@@ -21,6 +21,7 @@ rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim && e
 - 📊 **Scrollbar** - satellite.nvim with diagnostics and git signs
 - 📏 **Indent Guides** - hlchunk.nvim for visual indentation
 - 🔍 **Code Folding** - nvim-ufo with treesitter support
+- 📍 **Marks in Signcolumn** - marks.nvim renders mark letters in the gutter
 
 ---
 
@@ -52,6 +53,25 @@ rm -rf ~/.config/nvim ~/.local/share/nvim ~/.local/state/nvim ~/.cache/nvim && e
 | `<Cmd-Shift-o>` | Normal | Go to symbol (like VSCode) |
 | `<C-q>` | Normal | Toggle hover documentation |
 | `<C-h/j/k/l>` | Insert | Navigate in insert mode |
+
+### Marks (marks.nvim)
+Marks render in the signcolumn so you can see where they're set.
+
+| Keymap | Mode | Description |
+|--------|------|-------------|
+| `mx` | Normal | Set mark `x` (lowercase = buffer, uppercase = global) |
+| `m,` | Normal | Set next available lowercase mark |
+| `m;` | Normal | Toggle next available mark |
+| `dmx` | Normal | Delete mark `x` |
+| `dm-` | Normal | Delete all marks on current line |
+| `dm<space>` | Normal | Delete all marks in current buffer |
+| `m]` / `m[` | Normal | Jump to next/previous mark |
+| `m:` | Normal | Preview marks (popup) |
+| `m0`–`m9` | Normal | Set bookmark in group 0–9 |
+| `dm0`–`dm9` | Normal | Delete all bookmarks in group |
+| `m}` / `m{` | Normal | Jump to next/previous bookmark in group |
+| `'x` / `` `x `` | Normal | Jump to mark `x` (line / exact position) |
+| `:marks` | Command | List all marks |
 
 ### Editing
 | Keymap | Mode | Description |

@@ -13,6 +13,33 @@ return {
         tailwindcss = {},
         -- PHP
         intelephense = {
+          -- Per-project exclude: when editing pintro_ng, skip these portal subprojects
+          -- so intelephense doesn't index them (saves a lot of RAM/CPU).
+          on_new_config = function(new_config, new_root_dir)
+            if new_root_dir and new_root_dir:match("pintro_ng$") then
+              new_config.settings = vim.tbl_deep_extend("force", new_config.settings or {}, {
+                intelephense = {
+                  files = {
+                    exclude = {
+                      "**/pmb-all/**",
+                      "**/portal-absence/**",
+                      "**/portal-aquatic/**",
+                      "**/portal-lms/**",
+                      "**/portal-opac/**",
+                      "**/portal-payment/**",
+                      "**/portal-school/**",
+                      "**/portal-sosial/**",
+                      "**/portal-visitor/**",
+                      "**/vendor/**",
+                      "**/public/**",
+                      "**/resources/**",
+                      "**/storage/**",
+                    },
+                  },
+                },
+              })
+            end
+          end,
           on_attach = function(client, bufnr)
             local settings = vim.g.SETTINGS or { auto_format_on_save = false }
             -- Control formatting based on settings
