@@ -151,6 +151,33 @@ return {
         end,
         desc = "Add Workspace",
       },
+      {
+        "<leader>pd",
+        function()
+          local workspaces = require("workspaces")
+          local list = workspaces.get()
+          if not list or #list == 0 then
+            vim.notify("No workspaces to delete", vim.log.levels.INFO)
+            return
+          end
+          local names = {}
+          for _, ws in ipairs(list) do
+            table.insert(names, ws.name)
+          end
+          vim.ui.select(names, { prompt = "Delete workspace:" }, function(choice)
+            if not choice then return end
+            vim.ui.select({ "Yes", "No" }, {
+              prompt = "Delete workspace '" .. choice .. "'?",
+            }, function(confirm)
+              if confirm == "Yes" then
+                workspaces.remove(choice)
+                vim.notify("✓ Deleted workspace: " .. choice, vim.log.levels.INFO)
+              end
+            end)
+          end)
+        end,
+        desc = "Delete Workspace",
+      },
     },
   },
   {
