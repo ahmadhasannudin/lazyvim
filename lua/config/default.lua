@@ -33,6 +33,9 @@ vim.opt.termguicolors = true
 vim.opt.guicursor = "n-v-c:block-blinkwait700-blinkoff400-blinkon250,i-ci-ve:ver25-blinkwait700-blinkoff400-blinkon250,r-cr:hor20-blinkwait700-blinkoff400-blinkon250"
 vim.opt.cursorline = true
 
+-- Don't render tab/trail/nbsp markers (the default `tab:> ` makes Go tabs ugly).
+vim.opt.list = false
+
 -- Folding: treesitter-based (syntactically correct) with foldcolumn shown.
 -- foldlevel=99 means files open fully expanded; you fold what you want with za.
 vim.opt.foldmethod = "expr"
@@ -40,8 +43,22 @@ vim.opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
 vim.opt.foldenable = true
 vim.opt.foldlevel = 99
 vim.opt.foldlevelstart = 99
-vim.opt.foldcolumn = "1"
+-- foldcolumn=0 hides the separate left column; the fold marker is rendered
+-- next to the signs via _G.fold_marker() in the statuscolumn instead.
+vim.opt.foldcolumn = "0"
 vim.opt.fillchars:append({ foldopen = "▾", foldclose = "▸", fold = " ", foldsep = " " })
+
+-- Returns the fold indicator for a given line:
+--   ▸ if this line is the start of a closed fold
+--   ▾ if this line is the start of an open fold
+--   "" otherwise (so non-fold lines don't get extra spacing)
+function _G.fold_marker(lnum)
+  if vim.fn.foldclosed(lnum) == lnum then return "▸" end
+  local cur = vim.fn.foldlevel(lnum)
+  local prev = lnum > 1 and vim.fn.foldlevel(lnum - 1) or 0
+  if cur > prev then return "▾" end
+  return ""
+end
 
 -- Disable all animations
 -- vim.g.snacks_animate = false

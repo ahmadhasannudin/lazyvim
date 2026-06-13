@@ -12,7 +12,10 @@ return {
     -- comfy's autocmd group (same name + clear=true wipes its handlers)
     -- with one that treats snacks_picker_list as a special case.
     local PICKER_LIST = "snacks_picker_list"
-    local STATUSCOLUMN = '%=%s%=%{v:virtnum > 0 ? "" : v:lua.get_label(v:lnum, v:relnum)} '
+    -- %s = signcolumn (marks, gitsigns, etc.), followed by the fold marker in
+    -- the same area (so fold ▾/▸ sit next to the marks instead of in a
+    -- separate left column), then the comfy line label on the right.
+    local STATUSCOLUMN = '%s%{v:lua.fold_marker(v:lnum)}%=%{v:virtnum > 0 ? "" : v:lua.get_label(v:lnum, v:relnum)} '
 
     local function apply_for_picker_list(win, buf)
       vim.api.nvim_win_call(win, function()
