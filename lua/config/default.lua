@@ -33,6 +33,16 @@ vim.opt.termguicolors = true
 vim.opt.guicursor = "n-v-c:block-blinkwait700-blinkoff400-blinkon250,i-ci-ve:ver25-blinkwait700-blinkoff400-blinkon250,r-cr:hor20-blinkwait700-blinkoff400-blinkon250"
 vim.opt.cursorline = true
 
+-- Folding: treesitter-based (syntactically correct) with foldcolumn shown.
+-- foldlevel=99 means files open fully expanded; you fold what you want with za.
+vim.opt.foldmethod = "expr"
+vim.opt.foldexpr = "v:lua.vim.treesitter.foldexpr()"
+vim.opt.foldenable = true
+vim.opt.foldlevel = 99
+vim.opt.foldlevelstart = 99
+vim.opt.foldcolumn = "1"
+vim.opt.fillchars:append({ foldopen = "▾", foldclose = "▸", fold = " ", foldsep = " " })
+
 -- Disable all animations
 -- vim.g.snacks_animate = false
 
